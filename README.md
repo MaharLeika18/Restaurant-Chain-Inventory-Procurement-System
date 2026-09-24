@@ -45,4 +45,7 @@ Safety stock: 15 kg
 The system can calculate when another order needs to be placed.
 
 ## Installation:
-(Write install/setup instructions here)
+In your terminal:
+1. cd to project directory
+2. `python -m venv .venv`
+3. `pip install -r requirements.txt`
