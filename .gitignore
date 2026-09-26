@@ -25,3 +25,4 @@ coverage/
 .history/
 *.vsix
 .venv
+.DS_Store
