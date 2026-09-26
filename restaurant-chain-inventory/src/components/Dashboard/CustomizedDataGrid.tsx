@@ -1,9 +1,50 @@
-import { DataGrid } from '@mui/x-data-grid';
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import AddIcon from '@mui/icons-material/Add';
+import { DataGrid, GridPagination } from '@mui/x-data-grid';
+import CustomizedTabs from './CustomizedTabs'; 
 import { columns, rows } from '../../data/gridData';
 
-export default function CustomizedDataGrid() {
+interface CustomFooterProps {
+  createPath: string;
+}
+
+function CustomFooter({ createPath }: CustomFooterProps) {
+  const navigate = useNavigate();
+
+  const handleCreateClick = React.useCallback(() => {
+    navigate(createPath);
+  }, [navigate, createPath]);
+
   return (
-    <DataGrid
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        px: 1,
+      }}
+    >
+      <Button variant="contained" onClick={handleCreateClick} startIcon={<AddIcon />}>
+        Create
+      </Button>
+      <GridPagination />
+    </Box>
+  );
+}
+
+interface GridPanelProps {
+  rows: readonly any[];
+  columns: readonly any[];
+  createPath: string;
+}
+
+function GridPanel({ rows, columns, createPath }: GridPanelProps) {
+  return (
+    <DataGrid sx={{ padding: 0 }}
       checkboxSelection
       rows={rows}
       columns={columns}
@@ -16,6 +57,9 @@ export default function CustomizedDataGrid() {
       pageSizeOptions={[10, 20, 50]}
       disableColumnResize
       density="compact"
+      slots={{
+        footer: () => <CustomFooter createPath={createPath} />,
+      }}
       slotProps={{
         filterPanel: {
           filterFormProps: {
@@ -42,6 +86,28 @@ export default function CustomizedDataGrid() {
           },
         },
       }}
+    />
+  );
+}
+
+export default function CustomizedDataGrid() {
+  return (
+    <CustomizedTabs
+      tabs={[
+        {
+          label: 'Expiration Tracking',
+          content: (
+            <GridPanel rows={rows} columns={columns} createPath="/employees/new" />
+          ),
+        },
+        {
+          label: 'Reorder Recommendations',
+          content: (
+            // TODO: fix routing
+            <GridPanel rows={rows} columns={columns} createPath="/grid-2/new" />
+          ),
+        },
+      ]}
     />
   );
 }

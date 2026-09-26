@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { lineClasses } from '@mui/x-charts/LineChart';
 
-export type StatCardProps = {
+export type LineCardProps = {
   title: string;
   value: string;
   interval: string;
@@ -42,13 +42,13 @@ function AreaGradient({ color, id }: { color: string; id: string }) {
   );
 }
 
-export default function StatCard({
+export default function LineCard({
   title,
   value,
   interval,
   trend,
   data,
-}: StatCardProps) {
+}: LineCardProps) {
   const theme = useTheme();
   const daysInWeek = getDaysInMonth(4, 2024);
 
@@ -79,7 +79,7 @@ export default function StatCard({
 
   return (
     <Card variant="outlined" sx={{ height: '100%', flexGrow: 1 }}>
-      <CardContent>
+      <CardContent sx={{ padding: 0 }}>
         <Typography component="h2" variant="subtitle2" gutterBottom>
           {title}
         </Typography>

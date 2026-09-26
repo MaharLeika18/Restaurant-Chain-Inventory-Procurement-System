@@ -16,6 +16,7 @@ import {
   GlobeFlag,
 } from './CustomIcons';
 
+// TODO: LINK THIS TO POSTGRE USING SQLALCHEMY
 const data = [
   { label: 'India', value: 50000 },
   { label: 'USA', value: 35000 },
@@ -121,7 +122,7 @@ const colors = [
   'hsl(220, 20%, 25%)',
 ];
 
-export default function ChartUserByCountry() {
+export default function CustomizedPieChart() {
   return (
     <Card
       variant="outlined"
@@ -129,7 +130,7 @@ export default function ChartUserByCountry() {
     >
       <CardContent>
         <Typography component="h2" variant="subtitle2">
-          Users by country
+          Waste Report by reason
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <PieChart

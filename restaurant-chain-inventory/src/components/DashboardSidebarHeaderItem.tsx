@@ -28,6 +28,7 @@ export default function DashboardSidebarHeaderItem({
         {
           fontSize: 12,
           fontWeight: '600',
+          position: 'static',
           height: mini ? 0 : 36,
           px: 1.5,
           py: 0,

@@ -2,29 +2,28 @@ import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import ChartUserByCountry from './ChartUserByCountry';
-import CustomizedTreeView from './CustomizedTreeView';
+import CustomizedPieChart from './CustomizedPieChart';
+import CustomizedRadarChart from './CustomizedRadarChart';
 import CustomizedDataGrid from './CustomizedDataGrid';
-import HighlightedCard from './HighlightedCard';
-import PageViewsBarChart from './PageViewsBarChart';
-import SessionsChart from './SessionsChart';
-import StatCard, { StatCardProps } from './StatCard';
+import CustomBarChart from './CustomBarChart';
+import CustomLineChart from './CustomLineChart';
+import LineCard, { LineCardProps } from './LineCard';
 
-const data: StatCardProps[] = [
+const data: LineCardProps[] = [
   {
-    title: 'Users',
+    title: 'Low-stock / at-risk item count',
     value: '14k',
-    interval: 'Last 30 days',
-    trend: 'up',
+    interval: 'Last 30 days (trailing)',
+    trend: 'neutral',
     data: [
-      200, 24, 220, 260, 240, 380, 100, 240, 280, 240, 300, 340, 320, 360, 340, 380,
-      360, 400, 380, 420, 400, 640, 340, 460, 440, 480, 460, 600, 880, 920,
+      500, 400, 510, 530, 520, 600, 530, 520, 510, 730, 520, 510, 530, 620, 510, 530,
+      520, 410, 530, 520, 610, 530, 520, 610, 530, 420, 510, 430, 520, 510,
     ],
   },
   {
-    title: 'Conversions',
+    title: 'Waste Cost',
     value: '325',
-    interval: 'Last 30 days',
+    interval: 'Last 7 days',
     trend: 'down',
     data: [
       1640, 1250, 970, 1130, 1050, 900, 720, 1080, 900, 450, 920, 820, 840, 600, 820,
@@ -32,8 +31,19 @@ const data: StatCardProps[] = [
     ],
   },
   {
-    title: 'Event count',
+    title: 'Avg. on-time Supplier Deliveries',
     value: '200k',
+    interval: 'Rolling 30-day average',
+    trend: 'up',
+    data: [
+      200, 24, 220, 260, 240, 380, 100, 240, 280, 240, 300, 340, 320, 360, 340, 380,
+      360, 400, 380, 420, 400, 640, 340, 460, 440, 480, 460, 600, 880, 920,
+    ],
+
+  },
+  {
+    title: 'Inventory turnover rate',
+    value: '50k',
     interval: 'Last 30 days',
     trend: 'neutral',
     data: [
@@ -47,8 +57,8 @@ export default function MainGrid() {
   return (
     <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
       {/* cards */}
-      <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-        Overview
+      <Typography component="h2" variant="h6" sx={{ mb: 2, mt: '20px' }}>
+        Overview Dashboard
       </Typography>
       <Grid
         container
@@ -58,22 +68,16 @@ export default function MainGrid() {
       >
         {data.map((card, index) => (
           <Grid key={index} size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatCard {...card} />
+            <LineCard {...card} />
           </Grid>
         ))}
-        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <HighlightedCard />
+        <Grid size={{ xs: 12, md: 6 }}>
+          <CustomLineChart />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <SessionsChart />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <PageViewsBarChart />
+          <CustomBarChart />
         </Grid>
       </Grid>
-      <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-        Details
-      </Typography>
       <Grid container spacing={2} columns={12}>
         <Grid size={{ xs: 12, lg: 9 }}>
           <CustomizedDataGrid />
@@ -83,8 +87,8 @@ export default function MainGrid() {
             direction={{ xs: 'column', sm: 'row', lg: 'column' }}
             sx={{ gap: 2 }}
           >
-            <CustomizedTreeView />
-            <ChartUserByCountry />
+            <CustomizedRadarChart />
+            <CustomizedPieChart />
           </Stack>
         </Grid>
       </Grid>
