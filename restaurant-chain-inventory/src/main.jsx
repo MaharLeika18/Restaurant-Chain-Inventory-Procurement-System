@@ -1,10 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import './styles/index.css'
+import Login from './components/Login'
+import CrudDashboard from './components/CrudDashboard'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <CrudDashboard />
   </StrictMode>,
 )
