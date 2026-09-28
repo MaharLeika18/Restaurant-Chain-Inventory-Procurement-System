@@ -205,6 +205,13 @@ export default function DashboardSidebar({
               href="/procurement_management"
               selected={!!matchPath('/procurement_management/*', pathname) || pathname === '/'}
             />
+            <DashboardSidebarPageItem
+              id="demand_forecast"
+              title="Demand Forecast"
+              icon={<CircleIcon />}
+              href="/demand_forecast"
+              selected={!!matchPath('/demand_forecast/*', pathname) || pathname === '/'}
+            />
             <DashboardSidebarDividerItem />
             <DashboardSidebarHeaderItem>Tables</DashboardSidebarHeaderItem>
             <DashboardSidebarPageItem

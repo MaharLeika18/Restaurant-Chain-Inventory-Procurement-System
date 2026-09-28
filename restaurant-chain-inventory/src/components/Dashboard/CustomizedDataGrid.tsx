@@ -28,6 +28,7 @@ function CustomFooter({ createPath }: CustomFooterProps) {
         px: 1,
       }}
     >
+      {/* Link this button to Purchase Order Page */}
       <Button variant="contained" onClick={handleCreateClick} startIcon={<AddIcon />}>
         Create
       </Button>

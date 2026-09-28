@@ -9,6 +9,7 @@ import CustomBarChart from './CustomBarChart';
 import CustomLineChart from './CustomLineChart';
 import LineCard, { LineCardProps } from './LineCard';
 
+// TODO: replace with data from db
 const data: LineCardProps[] = [
   {
     title: 'Low-stock / at-risk item count',
