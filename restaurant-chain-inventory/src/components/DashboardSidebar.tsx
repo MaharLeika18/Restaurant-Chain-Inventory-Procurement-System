@@ -362,7 +362,7 @@ export default function DashboardSidebar({
                     id="stock_transfers"
                     title="Stock Transfers"
                     icon={<SwapHorizIcon />}
-                    href="/inventory/performance"
+                    href="/inventory/stock_transfers"
                     selected={!!matchPath('/inventory/stock_transfers', pathname)}
                   />
                   <DashboardSidebarPageItem
@@ -397,21 +397,21 @@ export default function DashboardSidebar({
                     id="supplier"
                     title="Suppliers"
                     icon={<StorefrontIcon />}
-                    href="/procurement/demand"
+                    href="/procurement/suppliers"
                     selected={!!matchPath('/procurement/demand', pathname)}
                   />
                   <DashboardSidebarPageItem
                     id="purchase_orders"
-                    title="Reorder Predictions"
+                    title="Purchase Orders"
                     icon={<RequestQuoteIcon />}
-                    href="/procurement/reorder"
+                    href="/procurement/purchase_orders"
                     selected={!!matchPath('/procurement/reorder', pathname)}
                   />
                   <DashboardSidebarPageItem
                     id="purchase_order_items"
                     title="Purchase Order Items"
                     icon={<ReceiptLongIcon />}
-                    href="/procurement/performance"
+                    href="/procurement/purchase_order_items"
                     selected={!!matchPath('/procurement/performance', pathname)}
                   />
                 </List>
@@ -494,6 +494,11 @@ export default function DashboardSidebar({
     [expanded, mini],
   );
 
+  // The phone drawer is a modal. Only treat it as open on screens where it is
+  // actually shown; otherwise it hides the whole app from screen readers and
+  // keyboard users even though CSS keeps it invisible.
+  const showPhoneDrawer = disableCollapsibleSidebar ? !isOverMdViewport : !isOverSmViewport;
+
   const sidebarContextValue = React.useMemo(() => {
     return {
       onPageItemClick: handlePageItemClick,
@@ -515,7 +520,7 @@ export default function DashboardSidebar({
       <Drawer
         container={container}
         variant="temporary"
-        open={expanded}
+        open={expanded && showPhoneDrawer}
         onClose={handleSetSidebarExpanded(false)}
         ModalProps={{
           keepMounted: true, // Better open performance on mobile.

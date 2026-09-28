@@ -19,7 +19,7 @@ import { api } from '../../api/client';
 // real current value rather than fabricating a trend - see backend
 // /dashboard/branch/{id}/summary and /dashboard/supplier-performance for
 // where these numbers actually come from.
-const SPARKLINE_LENGTH = 31;
+const SPARKLINE_LENGTH = 30; // LineCard's x-axis is April 2024 = 30 days
 const flatSeries = (value: number) => new Array(SPARKLINE_LENGTH).fill(value);
 
 export default function MainGrid() {
@@ -38,10 +38,13 @@ export default function MainGrid() {
       .then(([summary, supplierPerf]) => {
         if (cancelled) return;
 
+        const measurable = supplierPerf.filter(
+          (s: any) => s.total_delivered_on_time + s.total_delivered_late > 0,
+        );
         const avgOnTimeRate =
-          supplierPerf.length > 0
-            ? (supplierPerf.reduce((sum: number, s: any) => sum + s.on_time_delivery_rate, 0) /
-                supplierPerf.length) *
+          measurable.length > 0
+            ? (measurable.reduce((sum: number, s: any) => sum + s.on_time_delivery_rate, 0) /
+                measurable.length) *
               100
             : null;
 
@@ -50,7 +53,7 @@ export default function MainGrid() {
             title: 'Low-stock / at-risk items',
             value: String(summary.low_stock_count),
             interval: `As of ${summary.as_of}`,
-            trend: summary.low_stock_count > 0 ? 'down' : 'neutral',
+            trend: 'neutral',
             data: flatSeries(summary.low_stock_count),
           },
           {

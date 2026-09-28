@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.database import engine, Base
@@ -30,6 +32,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(IntegrityError)
+async def handle_integrity_error(request, exc: IntegrityError):
+    """Database constraint violations (duplicate name, record still in use) used to
+    surface as a bare 500 - which the browser can't even read because error
+    responses skip CORS. Return a clear 409 instead."""
+    detail = str(getattr(exc, "orig", exc)).lower()
+    if "unique" in detail or "duplicate key" in detail:
+        message = "A record with the same name already exists."
+    elif "foreign key" in detail:
+        message = "This record is still linked to other records (or points to one that doesn't exist)."
+    else:
+        message = "This change conflicts with existing data."
+    return JSONResponse(status_code=409, content={"detail": message})
 
 
 @app.on_event("startup")

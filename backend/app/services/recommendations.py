@@ -7,6 +7,7 @@ PENDING_APPROVAL and is_system_generated=True; a manager still has to
 approve them before they go to the supplier.
 """
 from collections import defaultdict
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -35,6 +36,7 @@ def generate_recommendations_for_branch(db: Session, branch_id: int) -> list[Pur
 
     # Group line items by the supplier that would fulfill them, since one PO -> one supplier.
     items_by_supplier: dict[int, list[PurchaseOrderItemCreate]] = defaultdict(list)
+    lead_days_by_supplier: dict[int, int] = defaultdict(int)
     skipped_no_supplier: list[str] = []
 
     for result in reorder_results:
@@ -42,6 +44,7 @@ def generate_recommendations_for_branch(db: Session, branch_id: int) -> list[Pur
         if link is None:
             skipped_no_supplier.append(result.ingredient_name)
             continue
+        lead_days_by_supplier[link.supplier_id] = max(lead_days_by_supplier[link.supplier_id], link.lead_time_days or 0)
         items_by_supplier[link.supplier_id].append(PurchaseOrderItemCreate(
             ingredient_id=result.ingredient_id,
             ordered_quantity=result.suggested_order_quantity,
@@ -62,6 +65,7 @@ def generate_recommendations_for_branch(db: Session, branch_id: int) -> list[Pur
             PurchaseOrderCreate(
                 branch_id=branch_id,
                 supplier_id=supplier_id,
+                expected_delivery_date=date.today() + timedelta(days=lead_days_by_supplier[supplier_id]),
                 notes="Auto-generated from reorder-point check.",
                 items=items,
             ),

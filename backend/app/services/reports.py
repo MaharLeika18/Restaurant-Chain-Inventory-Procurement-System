@@ -132,7 +132,8 @@ def supplier_performance(db: Session, supplier_id: int | None = None) -> list[Su
     results = []
     for sid, b in by_supplier.items():
         supplier = db.get(Supplier, sid)
-        rate = (b["on_time"] / b["total"]) if b["total"] > 0 else 0.0
+        measurable = b["on_time"] + b["late"]  # POs with no expected date can't be judged
+        rate = (b["on_time"] / measurable) if measurable > 0 else 0.0
         results.append(SupplierPerformanceOut(
             supplier_id=sid,
             supplier_name=supplier.supplier_name if supplier else "Unknown",

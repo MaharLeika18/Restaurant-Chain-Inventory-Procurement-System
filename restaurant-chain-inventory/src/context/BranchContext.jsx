@@ -11,8 +11,8 @@ export function BranchProvider({ children }) {
   });
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    api
+  const refreshBranches = React.useCallback(() => {
+    return api
       .listBranches()
       .then((data) => {
         setBranches(data);
@@ -30,11 +30,15 @@ export function BranchProvider({ children }) {
   }, []);
 
   React.useEffect(() => {
+    refreshBranches();
+  }, [refreshBranches]);
+
+  React.useEffect(() => {
     if (branchId != null) localStorage.setItem('selected_branch_id', String(branchId));
   }, [branchId]);
 
   return (
-    <BranchContext.Provider value={{ branches, branchId, setBranchId, loading }}>
+    <BranchContext.Provider value={{ branches, branchId, setBranchId, loading, refreshBranches }}>
       {children}
     </BranchContext.Provider>
   );

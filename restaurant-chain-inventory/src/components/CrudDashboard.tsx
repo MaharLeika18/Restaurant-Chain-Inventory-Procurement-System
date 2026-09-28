@@ -1,5 +1,5 @@
 import CssBaseline from '@mui/material/CssBaseline';
-import { createHashRouter, RouterProvider } from 'react-router';
+import { createHashRouter, Navigate, RouterProvider } from 'react-router';
 import DashboardLayout from './DashboardLayout.tsx';
 import Dashboard from './Dashboard.tsx';
 import EmployeeList from './Employee/EmployeeList.tsx';
@@ -10,6 +10,9 @@ import NotificationsProvider from '../hooks/useNotifications/NotificationsProvid
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
 import AppTheme from '../theme/AppTheme.tsx';
 import { BranchProvider } from '../context/BranchContext.jsx';
+import ResourcePage from './Resource/ResourcePage.tsx';
+import ComingSoon from './ComingSoon.tsx';
+import { resources } from '../resources/index.ts';
 import {
   dataGridCustomizations,
   datePickersCustomizations,
@@ -25,10 +28,18 @@ const router = createHashRouter([
         path: '/dashboard',
         Component: Dashboard,
       },
+      { path: '/', element: <Navigate to="/dashboard" replace /> },
       {
         path: '/employees',
         Component: EmployeeList,
       },
+      // the sidebar's Employees link points here
+      { path: '/organization/employees', Component: EmployeeList },
+      // every table page (Branches, Menu, Ingredients, ...) - see src/resources/index.ts
+      ...resources.map((r) => ({
+        path: r.path,
+        element: <ResourcePage key={r.path} config={r} />,
+      })),
       {
         path: '/employees/:employeeId',
         Component: EmployeeShow,
@@ -43,10 +54,10 @@ const router = createHashRouter([
       },
 
 
-      // Fallback route for the example routes in dashboard sidebar items
+      // Anything without a page yet (workflow pages, sidebar group headings)
       {
         path: '*',
-        Component: EmployeeList,
+        Component: ComingSoon,
       },
     ],
   },
