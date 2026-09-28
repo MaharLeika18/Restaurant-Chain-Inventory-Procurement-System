@@ -9,6 +9,7 @@ import EmployeeEdit from './Employee/EmployeeEdit.tsx';
 import NotificationsProvider from '../hooks/useNotifications/NotificationsProvider.tsx';
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
 import AppTheme from '../theme/AppTheme.tsx';
+import { BranchProvider } from '../context/BranchContext.jsx';
 import {
   dataGridCustomizations,
   datePickersCustomizations,
@@ -64,7 +65,9 @@ export default function CrudDashboard(props: { disableCustomTheme?: boolean }) {
       <CssBaseline enableColorScheme />
       <NotificationsProvider>
         <DialogsProvider>
-          <RouterProvider router={router} />
+          <BranchProvider>
+            <RouterProvider router={router} />
+          </BranchProvider>
         </DialogsProvider>
       </NotificationsProvider>
     </AppTheme>
