@@ -6,6 +6,8 @@ import EmployeeList from './Employee/EmployeeList.tsx';
 import EmployeeShow from './Employee/EmployeeShow.tsx';
 import EmployeeCreate from './Employee/EmployeeCreate.tsx';
 import EmployeeEdit from './Employee/EmployeeEdit.tsx';
+import BuildDemandForecast from './DemandForecasts/BuildDemandForecast.tsx'
+
 import NotificationsProvider from '../hooks/useNotifications/NotificationsProvider.tsx';
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
 import AppTheme from '../theme/AppTheme.tsx';
@@ -53,6 +55,10 @@ const router = createHashRouter([
         Component: EmployeeEdit,
       },
 
+      {
+        path: '/demand_forecast',
+        Component: BuildDemandForecast,
+      },
 
       // Anything without a page yet (workflow pages, sidebar group headings)
       {

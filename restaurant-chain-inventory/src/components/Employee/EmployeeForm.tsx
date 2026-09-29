@@ -40,6 +40,19 @@ export interface EmployeeFormProps {
   backButtonPath?: string;
 }
 
+interface ValidationResult<TValues> {
+  issues: { path: (keyof TValues)[]; message: string }[];
+}
+
+interface UseCrudFormOptions<TValues extends Record<string, any>> {
+  initialValues: Partial<TValues>;
+  validate: (values: Partial<TValues>) => ValidationResult<TValues>;
+  onSubmit: (values: Partial<TValues>) => Promise<void>;
+  successMessage: string;
+  failureMessagePrefix: string;
+  onSuccess?: () => void;
+}
+
 export default function EmployeeForm(props: EmployeeFormProps) {
   const {
     formState,

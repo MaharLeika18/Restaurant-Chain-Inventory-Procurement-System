@@ -120,10 +120,9 @@ export async function deleteOne(employeeId: number): Promise<void> {
 }
 
 // Validation follows the [Standard Schema](https://standardschema.dev/).
-
 type ValidationResult = { issues: { message: string; path: (keyof Employee)[] }[] };
 
-export function validate(employee: Partial<Employee>): ValidationResult {
+export function validateEmployee(employee: Partial<Employee>): ValidationResult {
   let issues: ValidationResult['issues'] = [];
 
   if (!employee.name) {
