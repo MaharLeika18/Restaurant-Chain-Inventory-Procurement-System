@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -23,7 +25,14 @@ from app.routers import (
     reports,
 )
 
-app = FastAPI(title=settings.app_name, debug=settings.debug)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Creates any tables that don't exist yet. Switch to Alembic migrations later
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,14 +56,6 @@ async def handle_integrity_error(request, exc: IntegrityError):
     else:
         message = "This change conflicts with existing data."
     return JSONResponse(status_code=409, content={"detail": message})
-
-
-@app.on_event("startup")
-def on_startup():
-    # Creates any tables that don't exist yet. Fine for local dev; once the
-    # schema stabilizes, switch to Alembic migrations (alembic upgrade head)
-    # instead of relying on this.
-    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/", tags=["Health"])

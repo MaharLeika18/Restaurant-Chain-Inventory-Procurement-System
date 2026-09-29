@@ -11,7 +11,7 @@ Uses a simple moving average over a lookback window (default 30 days).
 Swap in exponential smoothing or a proper time-series model later without
 changing the API/persisted-table shape.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import func
@@ -67,7 +67,7 @@ def _demand_from_orders(db: Session, branch_id: int, ingredient_id: int, since: 
 
     if total <= 0 or earliest is None:
         return 0.0, 0
-    days_with_data = max((datetime.utcnow() - earliest).days, 1)
+    days_with_data = max((datetime.now(timezone.utc).replace(tzinfo=None) - earliest).days, 1)
     return total, days_with_data
 
 
@@ -95,13 +95,13 @@ def _demand_from_consumption_ledger(db: Session, branch_id: int, ingredient_id: 
     )
     if earliest is None:
         return 0.0, 0
-    days_with_data = max((datetime.utcnow() - earliest).days, 1)
+    days_with_data = max((datetime.now(timezone.utc).replace(tzinfo=None) - earliest).days, 1)
     return float(total), days_with_data
 
 
 def average_daily_demand(db: Session, branch_id: int, ingredient_id: int, lookback_days: int = 30) -> tuple[float, int, str]:
     """Returns (avg_daily_demand, days_of_history_used, method)."""
-    since = datetime.utcnow() - timedelta(days=lookback_days)
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=lookback_days)
 
     total, days_with_data = _demand_from_orders(db, branch_id, ingredient_id, since)
     method = "order_history"
