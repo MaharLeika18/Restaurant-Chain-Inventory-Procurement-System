@@ -8,6 +8,10 @@ import EmployeeCreate from './Employee/EmployeeCreate.tsx';
 import EmployeeEdit from './Employee/EmployeeEdit.tsx';
 import BuildDemandForecast from './DemandForecasts/BuildDemandForecast.tsx'
 import PointOfSale from './POS/PointOfSale.tsx'
+import Inventory from './InventoryOperations/Inventory.tsx'
+import ReceivePurchaseOrder from './InventoryOperations/ReceivePurchaseOrder.tsx'
+import AdjustStock from './InventoryOperations/AdjustStock.tsx'
+import Transfer from './InventoryOperations/Transfer.tsx'
 
 import NotificationsProvider from '../hooks/useNotifications/NotificationsProvider.tsx';
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
@@ -55,6 +59,7 @@ const router = createHashRouter([
         path: '/employees/:employeeId/edit',
         Component: EmployeeEdit,
       },
+      
 
       {
         path: '/demand_forecast',
@@ -63,6 +68,22 @@ const router = createHashRouter([
       {
         path: '/order_processing',
         Component: PointOfSale
+      },
+      {
+        path: '/inventory_operations',
+        Component: Inventory
+      },
+      {
+        path: '/inventory_operations/receive-purchase-order',
+        Component: ReceivePurchaseOrder
+      },
+      {
+        path: '/inventory_operations/:itemId/adjust-stock',
+        Component: AdjustStock
+      },
+      {
+        path: '/inventory_operations/:itemId/transfer',
+        Component: Transfer
       },
 
       // Anything without a page yet (workflow pages, sidebar group headings)

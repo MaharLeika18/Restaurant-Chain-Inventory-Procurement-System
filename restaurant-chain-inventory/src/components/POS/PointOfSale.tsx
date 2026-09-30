@@ -19,6 +19,7 @@ import {
   TableCell,
   TableContainer,
   TableRow,
+  useTheme,
 } from '@mui/material';
 import PageContainer from '../PageContainer';
 import React from 'react';
@@ -62,7 +63,7 @@ const mockMenuItems: MenuItem[] = [
 
 const LABEL_TRANSFORM = 'translate(10px, 4px) scale(1)';
 
-const labelSx = {
+const getLabelSx = (theme: any) => ({
   '& .MuiInputBase-root': {
     marginTop: '15px',
   },
@@ -73,8 +74,8 @@ const labelSx = {
     background: `linear-gradient(
       to bottom,
       transparent calc(50% - 2px),
-      #05070a calc(50% - 2px),
-      #05070a calc(50% + 2px),
+      ${(theme.vars || theme).palette.background.default} calc(50% - 2px),
+      ${(theme.vars || theme).palette.background.default} calc(50% + 2px),
       transparent calc(50% + 2px)
     )`,
     '&.MuiInputLabel-shrink, &.Mui-focused, &.MuiInputLabel-shrink.Mui-focused': {
@@ -84,10 +85,11 @@ const labelSx = {
       zIndex: 10,
     },
   },
-};
+});
 
 export default function PointOfSale() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [cart, setCart] = useState<OrderItem[]>([]);
 
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
@@ -230,7 +232,7 @@ export default function PointOfSale() {
                     value={search}
                     placeholder="Type to search"
                     InputLabelProps={{ shrink: true }}
-                    sx={{ ...labelSx, minWidth: 220 }}
+                    sx={{ ...getLabelSx(theme), minWidth: 220 }}
                     onChange={(e) => {
                         const value = e.target.value;
                         setSearch(value);
@@ -247,7 +249,7 @@ export default function PointOfSale() {
                     value={sortField}
                     InputLabelProps={{ shrink: true }}
                     SelectProps={{ native: true }}
-                    sx={{ ...labelSx, minWidth: 160 }}
+                    sx={{ ...getLabelSx(theme), minWidth: 160 }}
                     onChange={(e) => {
                         const value = e.target.value;
                         setSortField(value);
