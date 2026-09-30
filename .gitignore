@@ -25,10 +25,9 @@ coverage/
 .history/
 *.vsix
 .venv
-<<<<<<< Updated upstream
 .DS_Store
-=======
-.DS_Store
+.vscode
+
 # Python
 __pycache__/
 *.pyc
@@ -58,4 +57,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
->>>>>>> Stashed changes

@@ -60,6 +60,32 @@ const mockMenuItems: MenuItem[] = [
   { id: '15', name: 'Ramen', price: 12.50 },
 ];
 
+const LABEL_TRANSFORM = 'translate(10px, 4px) scale(1)';
+
+const labelSx = {
+  '& .MuiInputBase-root': {
+    marginTop: '15px',
+  },
+  '& .MuiInputLabel-root': {
+    transform: LABEL_TRANSFORM,
+    px: '4px',
+    zIndex: 1,
+    background: `linear-gradient(
+      to bottom,
+      transparent calc(50% - 2px),
+      #05070a calc(50% - 2px),
+      #05070a calc(50% + 2px),
+      transparent calc(50% + 2px)
+    )`,
+    '&.MuiInputLabel-shrink, &.Mui-focused, &.MuiInputLabel-shrink.Mui-focused': {
+      transform: LABEL_TRANSFORM,
+    },
+    '&.Mui-focused': {
+      zIndex: 10,
+    },
+  },
+};
+
 export default function PointOfSale() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<OrderItem[]>([]);
@@ -162,7 +188,8 @@ export default function PointOfSale() {
 
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState(''); // '' = None, or use 'name' as a real default
-
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [sortFocused, setSortFocused] = useState(false);
 
   const handleFinalizeOrder = () => {
     // TODO: Send order data to backend API
@@ -190,49 +217,47 @@ export default function PointOfSale() {
         {/* Menu Items Section - 2/3 of the space */}
         <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header with Title and Controls */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, position: 'relative', zIndex: 1 }}>
             <Typography variant="h6">
               Menu Items
             </Typography>
 
             {/* TODO: Add filter and sort controls here */}
-            <Box component="form" sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-                label="Search by name"
-                size="small"
-                value={search}
-                placeholder="Type to search"
-                InputLabelProps={{ shrink: true }}
-                sx={{ minWidth: 220 }}
-                onChange={(e) => {
-                const value = e.target.value;
-                setSearch(value);
-                setFilterModel({
-                    items: value
-                    ? [{ field: 'name', operator: 'contains', value }]
-                    : [],
-                });
-                setPaginationModel({ ...paginationModel, page: 0 });
-                }}
-            />
-            <TextField
-                label="Sort by"
-                size="small"
-                select
-                value={sortField}
-                InputLabelProps={{ shrink: true }}
-                SelectProps={{ native: true }}
-                sx={{ minWidth: 160 }}
-                onChange={(e) => {
-                const value = e.target.value;
-                setSortField(value);
-                setSortModel(value ? [{ field: value, sort: 'asc' }] : []);
-                }}
-            >
-                <option value="">None</option>
-                <option value="name">Name</option>
-                <option value="price">Price</option>
-            </TextField>
+            <Box component="form" sx={{ display: 'flex', gap: 2, position: 'relative', zIndex: 10 }}>
+                <TextField
+                    label="Search by name"
+                    size="small"
+                    value={search}
+                    placeholder="Type to search"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ ...labelSx, minWidth: 220 }}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        setSearch(value);
+                        setFilterModel({
+                        items: value ? [{ field: 'name', operator: 'contains', value }] : [],
+                        });
+                        setPaginationModel({ ...paginationModel, page: 0 });
+                    }}
+                />
+                <TextField
+                    label="Sort by"
+                    size="small"
+                    select
+                    value={sortField}
+                    InputLabelProps={{ shrink: true }}
+                    SelectProps={{ native: true }}
+                    sx={{ ...labelSx, minWidth: 160 }}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        setSortField(value);
+                        setSortModel(value ? [{ field: value, sort: 'asc' }] : []);
+                    }}
+                    >
+                    <option value="">None</option>
+                    <option value="name">Name</option>
+                    <option value="price">Price</option>
+                </TextField>
             </Box>
         </Box>
 
@@ -320,7 +345,7 @@ export default function PointOfSale() {
 
         <Divider orientation="vertical" flexItem />
 
-        {/* Order Entry Panel - 1/3 of the space */}
+        {/* Order Entry Panel */}
         <Paper
           sx={{
             flex: 1,
@@ -339,6 +364,7 @@ export default function PointOfSale() {
           <Box
             sx={{
               flex: 1,
+              minHeight: 0,
               overflowY: 'auto',
               mb: 2,
               pr: 1,
@@ -361,7 +387,17 @@ export default function PointOfSale() {
             ) : (
               <Stack spacing={1}>
                 {cart.map((item) => (
-                  <Paper key={item.id} sx={{ p: 1.5, bgcolor: 'background.paper' }}>
+                  <Paper key={item.id} 
+                    sx={{
+                        flex: 1,
+                        minHeight: 0,      
+                        display: 'flex',
+                        flexDirection: 'column',
+                        p: 2,
+                        bgcolor: 'background.default',
+                        overflow: 'hidden',
+                    }}
+                  >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                       {/* Left Side - Item Name and Unit Price */}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -386,11 +422,11 @@ export default function PointOfSale() {
                           type="number"
                           size="small"
                           value={item.quantity}
-                          onChange={(e) =>
-                            handleUpdateQuantity(item.id, Math.max(0, parseInt(e.target.value) || 0))
-                          }
-                          inputProps={{ min: 0, max: 999, style: { textAlign: 'center', padding: '4px' } }}
-                          sx={{ width: '50px', height: '32px', '& input': { height: '32px', padding: 0 } }}
+                        //   onChange={(e) =>
+                        //     handleUpdateQuantity(item.id, Math.max(0, parseInt(e.target.value) || 0))
+                        //   }
+                        //   inputProps={{ min: 0, max: 999, style: { textAlign: 'center', padding: '4px' } }}
+                          sx={{ width: '50px', height: '32px', mb: '15px','& input': { height: '32px', padding: 0 } }}
                         />
                         <IconButton
                           size="small"
