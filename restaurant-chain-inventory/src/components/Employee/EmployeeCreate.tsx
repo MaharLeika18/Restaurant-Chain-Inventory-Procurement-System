@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useCrudForm } from '../../hooks/useCrudForm';
-import { createOneEmployee, validateEmployee, type Employee, type EmployeeFormState } from '../../data/employees';
+import { createOne, validateEmployee, type Employee, type EmployeeFormState } from '../../data/employees';
 import EmployeeForm from './EmployeeForm';
 import PageContainer from '../PageContainer';
 

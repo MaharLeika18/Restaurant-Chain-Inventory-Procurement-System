@@ -7,6 +7,7 @@ import EmployeeShow from './Employee/EmployeeShow.tsx';
 import EmployeeCreate from './Employee/EmployeeCreate.tsx';
 import EmployeeEdit from './Employee/EmployeeEdit.tsx';
 import BuildDemandForecast from './DemandForecasts/BuildDemandForecast.tsx'
+import PointOfSale from './POS/PointOfSale.tsx'
 
 import NotificationsProvider from '../hooks/useNotifications/NotificationsProvider.tsx';
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
@@ -46,6 +47,10 @@ const router = createHashRouter([
       {
         path: '/demand_forecast',
         Component: BuildDemandForecast,
+      },
+      {
+        path: '/order_processing',
+        Component: PointOfSale
       },
 
       // Fallback route for the example routes in dashboard sidebar items
