@@ -205,6 +205,7 @@ export default function PointOfSale() {
   return (
     <PageContainer
       title="Point of Sale"
+      showBranchSelector={true}
       actions={
         <Button
           variant="contained"

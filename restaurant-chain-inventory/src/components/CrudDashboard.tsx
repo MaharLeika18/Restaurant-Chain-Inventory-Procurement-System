@@ -12,6 +12,8 @@ import Inventory from './InventoryOperations/Inventory.tsx'
 import ReceivePurchaseOrder from './InventoryOperations/ReceivePurchaseOrder.tsx'
 import AdjustStock from './InventoryOperations/AdjustStock.tsx'
 import Transfer from './InventoryOperations/Transfer.tsx'
+import PurchaseOrders from './Procurement/PurchaseOrders.tsx'
+import CreatePurchaseOrder from './Procurement/CreatePurchaseOrder.tsx'
 
 import NotificationsProvider from '../hooks/useNotifications/NotificationsProvider.tsx';
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
@@ -84,6 +86,14 @@ const router = createHashRouter([
       {
         path: '/inventory_operations/:itemId/transfer',
         Component: Transfer
+      },
+      {
+        path: '/procurement_management',
+        Component: PurchaseOrders
+      },
+      {
+        path: '/procurement_management/new',
+        Component: CreatePurchaseOrder
       },
 
       // Anything without a page yet (workflow pages, sidebar group headings)

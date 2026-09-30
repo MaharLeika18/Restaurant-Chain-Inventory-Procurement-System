@@ -4,19 +4,20 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
 import { DataGrid, GridPagination } from '@mui/x-data-grid';
-import CustomizedTabs from './CustomizedTabs'; 
-import { columns, rows } from '../../data/gridData';
+import CustomizedTabs from './CustomizedTabs';
+import { columns, rows, reorderColumns, reorderRows } from '../../data/gridData';
 
 interface CustomFooterProps {
   createPath: string;
+  selectedRows?: any[];
 }
 
-function CustomFooter({ createPath }: CustomFooterProps) {
+function CustomFooter({ createPath, selectedRows = [] }: CustomFooterProps) {
   const navigate = useNavigate();
 
   const handleCreateClick = React.useCallback(() => {
-    navigate(createPath);
-  }, [navigate, createPath]);
+    navigate(createPath, { state: { selectedItems: selectedRows } });
+  }, [navigate, createPath, selectedRows]);
 
   return (
     <Box
@@ -41,12 +42,15 @@ interface GridPanelProps {
   rows: readonly any[];
   columns: readonly any[];
   createPath: string;
+  showCheckbox?: boolean;
 }
 
-function GridPanel({ rows, columns, createPath }: GridPanelProps) {
+function GridPanel({ rows, columns, createPath, showCheckbox = false }: GridPanelProps) {
+  const [selectedRows, setSelectedRows] = React.useState<any[]>([]);
+
   return (
     <DataGrid sx={{ padding: 0 }}
-      checkboxSelection
+      checkboxSelection={showCheckbox}
       rows={rows}
       columns={columns}
       getRowClassName={(params) =>
@@ -58,8 +62,12 @@ function GridPanel({ rows, columns, createPath }: GridPanelProps) {
       pageSizeOptions={[10, 20, 50]}
       disableColumnResize
       density="compact"
+      onRowSelectionModelChange={(newSelection) => {
+        const selected = rows.filter((row) => newSelection.includes(row.id));
+        setSelectedRows(selected);
+      }}
       slots={{
-        footer: () => <CustomFooter createPath={createPath} />,
+        footer: () => <CustomFooter createPath={createPath} selectedRows={selectedRows} />,
       }}
       slotProps={{
         filterPanel: {
@@ -104,8 +112,7 @@ export default function CustomizedDataGrid() {
         {
           label: 'Reorder Recommendations',
           content: (
-            // TODO: fix routing
-            <GridPanel rows={rows} columns={columns} createPath="/grid-2/new" />
+            <GridPanel rows={reorderRows} columns={reorderColumns} createPath="/procurement/purchase-orders" showCheckbox={true} />
           ),
         },
       ]}

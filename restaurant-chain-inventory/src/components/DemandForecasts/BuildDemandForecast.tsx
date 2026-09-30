@@ -17,8 +17,13 @@ import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import ForecastLineChart from './ForecastLineChart';
 import ForecastTable from './ForecastTable'
+import { useBranch } from '../../context/BranchContext';
 
 const xThemeComponents = {
   ...chartsCustomizations,
@@ -28,6 +33,8 @@ const xThemeComponents = {
 };
 
 export default function DemandForecastPage(props: { disableCustomTheme?: boolean }) {
+  const { branches, branchId, setBranchId, loading } = useBranch();
+
   return (
     <AppTheme {...props} themeComponents={xThemeComponents}>
       <CssBaseline enableColorScheme />
@@ -54,9 +61,26 @@ export default function DemandForecastPage(props: { disableCustomTheme?: boolean
           >
             {/* Same as MainGrid's root */}
             <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
-              <Typography component="h2" variant="h6" sx={{ mb: 2, mt: '20px' }}>
-                Demand Forecast
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, mt: '20px' }}>
+                <Typography component="h2" variant="h6">
+                  Demand Forecast
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Branch</InputLabel>
+                  <Select
+                    value={branchId || ''}
+                    label="Branch"
+                    onChange={(e) => setBranchId(Number(e.target.value))}
+                    disabled={loading || branches.length === 0}
+                  >
+                    {branches.map((branch: any) => (
+                      <MenuItem key={branch.branch_id} value={branch.branch_id}>
+                        {branch.branch_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
 
               <Grid container spacing={2} columns={12}>
                 <Grid size={{ xs: 12 }}>

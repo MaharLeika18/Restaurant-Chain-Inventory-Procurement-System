@@ -380,6 +380,7 @@ export default function Inventory() {
     <PageContainer
       title="Inventory Management"
       breadcrumbs={[{ title: 'Inventory' }]}
+      showBranchSelector={true}
       actions={
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Tooltip title="Reload data" placement="right" enterDelay={1000}>

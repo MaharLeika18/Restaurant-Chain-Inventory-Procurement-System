@@ -4,6 +4,10 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import CustomizedPieChart from './CustomizedPieChart';
 import CustomizedRadarChart from './CustomizedRadarChart';
 import CustomizedDataGrid from './CustomizedDataGrid';
@@ -23,7 +27,7 @@ const SPARKLINE_LENGTH = 30; // LineCard's x-axis is April 2024 = 30 days
 const flatSeries = (value: number) => new Array(SPARKLINE_LENGTH).fill(value);
 
 export default function MainGrid() {
-  const { branchId } = useBranch();
+  const { branches, branchId, setBranchId, loading } = useBranch();
   const [cards, setCards] = React.useState<LineCardProps[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -89,9 +93,26 @@ export default function MainGrid() {
   return (
     <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
       {/* cards */}
-      <Typography component="h2" variant="h6" sx={{ mb: 2, mt: '20px' }}>
-        Overview Dashboard
-      </Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, mt: '20px' }}>
+        <Typography component="h2" variant="h6">
+          Overview Dashboard
+        </Typography>
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <InputLabel>Branch</InputLabel>
+          <Select
+            value={branchId || ''}
+            label="Branch"
+            onChange={(e) => setBranchId(Number(e.target.value))}
+            disabled={loading || branches.length === 0}
+          >
+            {branches.map((branch: any) => (
+              <MenuItem key={branch.branch_id} value={branch.branch_id}>
+                {branch.branch_name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Couldn't load dashboard data: {error}
