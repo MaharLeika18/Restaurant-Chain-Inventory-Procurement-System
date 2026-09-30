@@ -13,6 +13,7 @@ export type LineCardProps = {
   value: string;
   interval: string;
   trend: 'up' | 'down' | 'neutral';
+  trendLabel?: string; // only shown when we have a real trend to report
   data: number[];
 };
 
@@ -47,6 +48,7 @@ export default function LineCard({
   value,
   interval,
   trend,
+  trendLabel,
   data,
 }: LineCardProps) {
   const theme = useTheme();
@@ -75,7 +77,6 @@ export default function LineCard({
 
   const color = labelColors[trend];
   const chartColor = trendColors[trend];
-  const trendValues = { up: '+25%', down: '-25%', neutral: '+5%' };
 
   return (
     <Card variant="outlined" sx={{ height: '100%', flexGrow: 1 }}>
@@ -95,7 +96,7 @@ export default function LineCard({
               <Typography variant="h4" component="p">
                 {value}
               </Typography>
-              <Chip size="small" color={color} label={trendValues[trend]} />
+              {trendLabel && <Chip size="small" color={color} label={trendLabel} />}
             </Stack>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {interval}

@@ -1,52 +1,39 @@
 import type { GridFilterModel, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
+import { api } from '../api/client';
 
-type EmployeeRole = 'Market' | 'Finance' | 'Development';
-
+// Mirrors the real backend's Employee model (app/models/employee.py) and
+// EmployeeOut schema (app/schemas/employee.py) - see backend/README.md.
 export interface Employee {
-  id: number;
-  name: string;
-  age: number;
-  joinDate: string;
-  role: EmployeeRole;
-  isFullTime: boolean;
+  id: number; // maps to employee_id
+  branch_id: number;
+  name: string; // maps to full_name
+  position: string | null;
+  contact_number: string | null;
+  hire_date: string | null; // ISO date
+  is_active: boolean;
 }
 
-// TODO: DELETE THE FOLLOWING THREE CODE BLOCKS ONCE DB IS IMPLEMENTED
-const INITIAL_EMPLOYEES_STORE: Employee[] = [
-  {
-    id: 1,
-    name: 'Edward Perry',
-    age: 25,
-    joinDate: '2025-07-16T00:00:00.000Z',
-    role: 'Finance',
-    isFullTime: true,
-  },
-  {
-    id: 2,
-    name: 'Josephine Drake',
-    age: 36,
-    joinDate: '2025-07-16T00:00:00.000Z',
-    role: 'Market',
-    isFullTime: false,
-  },
-  {
-    id: 3,
-    name: 'Cody Phillips',
-    age: 19,
-    joinDate: '2025-07-16T00:00:00.000Z',
-    role: 'Development',
-    isFullTime: true,
-  },
-];
-
-// TODO: REPLACE WITH FASTAPI GET /employees
-export function getEmployeesStore(): Employee[] {
-  const stringifiedEmployees = localStorage.getItem('employees-store');
-  return stringifiedEmployees ? JSON.parse(stringifiedEmployees) : INITIAL_EMPLOYEES_STORE;
+function fromApi(e: any): Employee {
+  return {
+    id: e.employee_id,
+    branch_id: e.branch_id,
+    name: e.full_name,
+    position: e.position ?? null,
+    contact_number: e.contact_number ?? null,
+    hire_date: e.hire_date ?? null,
+    is_active: e.is_active,
+  };
 }
 
-export function setEmployeesStore(employees: Employee[]) {
-  return localStorage.setItem('employees-store', JSON.stringify(employees));
+function toApi(data: Partial<Omit<Employee, 'id'>>) {
+  const payload: Record<string, unknown> = {};
+  if (data.branch_id !== undefined) payload.branch_id = data.branch_id;
+  if (data.name !== undefined) payload.full_name = data.name;
+  if (data.position !== undefined) payload.position = data.position;
+  if (data.contact_number !== undefined) payload.contact_number = data.contact_number;
+  if (data.hire_date !== undefined) payload.hire_date = data.hire_date ? data.hire_date.slice(0, 10) : null;
+  if (data.is_active !== undefined) payload.is_active = data.is_active;
+  return payload;
 }
 
 export async function getMany({
@@ -58,20 +45,17 @@ export async function getMany({
   sortModel: GridSortModel;
   filterModel: GridFilterModel;
 }): Promise<{ items: Employee[]; itemCount: number }> {
-  const employeesStore = getEmployeesStore();
+  // The backend doesn't support arbitrary DataGrid filter/sort operators
+  // over HTTP yet, so we fetch (up to a reasonable cap) and do that part
+  // client-side, same as the page did against localStorage before this.
+  const raw = await api.get('/employees/?limit=500');
+  let employees = raw.map(fromApi);
 
-  let filteredEmployees = [...employeesStore];
-
-  // Apply filters (example only)
   if (filterModel?.items?.length) {
     filterModel.items.forEach(({ field, value, operator }) => {
-      if (!field || value == null) {
-        return;
-      }
-
-      filteredEmployees = filteredEmployees.filter((employee) => {
-        const employeeValue = employee[field as keyof Employee];
-
+      if (!field || value == null) return;
+      employees = employees.filter((employee) => {
+        const employeeValue = (employee as any)[field];
         switch (operator) {
           case 'contains':
             return String(employeeValue).toLowerCase().includes(String(value).toLowerCase());
@@ -92,33 +76,27 @@ export async function getMany({
     });
   }
 
-  // Apply sorting
   if (sortModel?.length) {
-    filteredEmployees.sort((a, b) => {
+    employees.sort((a, b) => {
       for (const { field, sort } of sortModel) {
-        if (a[field as keyof Employee] < b[field as keyof Employee]) {
-          return sort === 'asc' ? -1 : 1;
-        }
-        if (a[field as keyof Employee] > b[field as keyof Employee]) {
-          return sort === 'asc' ? 1 : -1;
-        }
+        const av = (a as any)[field];
+        const bv = (b as any)[field];
+        if (av < bv) return sort === 'asc' ? -1 : 1;
+        if (av > bv) return sort === 'asc' ? 1 : -1;
       }
       return 0;
     });
   }
 
-  // Apply pagination
   const start = paginationModel.page * paginationModel.pageSize;
   const end = start + paginationModel.pageSize;
-  const paginatedEmployees = filteredEmployees.slice(start, end);
 
   return {
-    items: paginatedEmployees,
-    itemCount: filteredEmployees.length,
+    items: employees.slice(start, end),
+    itemCount: employees.length,
   };
 }
 
-// TODO: REPLACE WITH GET /employees/{employeeId} OR SIMILAR
 export async function getOne(employeeId: number) {
   const employeesStore = getEmployeesStore();
 
@@ -130,8 +108,7 @@ export async function getOne(employeeId: number) {
   return employeeToShow;
 }
 
-// TODO: REPLACE WITH POST /employees
-export async function createOneEmployee(data: Omit<Employee, 'id'>) {
+export async function createOne(data: Omit<Employee, 'id'>) {
   const employeesStore = getEmployeesStore();
 
   const newEmployee = {
@@ -144,7 +121,6 @@ export async function createOneEmployee(data: Omit<Employee, 'id'>) {
   return newEmployee;
 }
 
-// TODO: REPLACE WITH PATCH /employees/{employeeId} OR SIMILAR
 export async function updateOne(employeeId: number, data: Partial<Omit<Employee, 'id'>>) {
   const employeesStore = getEmployeesStore();
 
@@ -166,7 +142,6 @@ export async function updateOne(employeeId: number, data: Partial<Omit<Employee,
   return updatedEmployee;
 }
 
-// TODO REPLACE WITH DELETE /employees/{employeeId}
 export async function deleteOne(employeeId: number) {
   const employeesStore = getEmployeesStore();
 
@@ -183,23 +158,8 @@ export function validateEmployee(employee: Partial<Employee>): ValidationResult 
     issues = [...issues, { message: 'Name is required', path: ['name'] }];
   }
 
-  if (!employee.age) {
-    issues = [...issues, { message: 'Age is required', path: ['age'] }];
-  } else if (employee.age < 18) {
-    issues = [...issues, { message: 'Age must be at least 18', path: ['age'] }];
-  }
-
-  if (!employee.joinDate) {
-    issues = [...issues, { message: 'Join date is required', path: ['joinDate'] }];
-  }
-
-  if (!employee.role) {
-    issues = [...issues, { message: 'Role is required', path: ['role'] }];
-  } else if (!['Market', 'Finance', 'Development'].includes(employee.role)) {
-    issues = [
-      ...issues,
-      { message: 'Role must be "Market", "Finance" or "Development"', path: ['role'] },
-    ];
+  if (!employee.branch_id) {
+    issues = [...issues, { message: 'Branch is required', path: ['branch_id'] }];
   }
 
   return { issues };

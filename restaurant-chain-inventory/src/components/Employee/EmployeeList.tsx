@@ -47,23 +47,18 @@ export default function EmployeeList() {
   const columns = React.useMemo<GridColDef[]>(
     () => [
       { field: 'id', headerName: 'ID' },
-      { field: 'name', headerName: 'Name', width: 140 },
-      { field: 'age', headerName: 'Age', type: 'number' },
+      { field: 'name', headerName: 'Name', width: 160 },
+      { field: 'branch_id', headerName: 'Branch ID', type: 'number', width: 100 },
+      { field: 'position', headerName: 'Position', width: 160 },
+      { field: 'contact_number', headerName: 'Contact #', width: 140 },
       {
-        field: 'joinDate',
-        headerName: 'Join date',
+        field: 'hire_date',
+        headerName: 'Hire date',
         type: 'date',
         valueGetter: (value) => value && new Date(value),
         width: 140,
       },
-      {
-        field: 'role',
-        headerName: 'Department',
-        type: 'singleSelect',
-        valueOptions: ['Market', 'Finance', 'Development'],
-        width: 160,
-      },
-      { field: 'isFullTime', headerName: 'Full-time', type: 'boolean' },
+      { field: 'is_active', headerName: 'Active', type: 'boolean' },
       {
         field: 'actions',
         type: 'actions',

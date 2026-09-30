@@ -19,6 +19,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router';
 import dayjs, { Dayjs } from 'dayjs';
 import type { Employee } from '../../data/employees';
+import { useBranch } from '../../context/BranchContext';
 
 export interface EmployeeFormState {
   values: Partial<Omit<Employee, 'id'>>;
@@ -141,6 +142,8 @@ export default function EmployeeForm(props: EmployeeFormProps) {
     navigate(backButtonPath ?? '/employees');
   }, [navigate, backButtonPath]);
 
+  const { branches } = useBranch();
+
   return (
     <Box
       component="form"
@@ -157,35 +160,68 @@ export default function EmployeeForm(props: EmployeeFormProps) {
               value={formValues.name ?? ''}
               onChange={handleTextFieldChange}
               name="name"
-              label="Name"
+              label="Full name"
               error={!!formErrors.name}
               helperText={formErrors.name ?? ' '}
               fullWidth
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
+            <FormControl error={!!formErrors.branch_id} fullWidth>
+              <InputLabel id="employee-branch-label">Branch</InputLabel>
+              <Select
+                value={formValues.branch_id != null ? String(formValues.branch_id) : ''}
+                onChange={(event) =>
+                  onFieldChange('branch_id', Number((event.target as HTMLInputElement).value))
+                }
+                labelId="employee-branch-label"
+                name="branch_id"
+                label="Branch"
+                fullWidth
+              >
+                {branches.map((branch: any) => (
+                  <MenuItem key={branch.branch_id} value={String(branch.branch_id)}>
+                    {branch.branch_name}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>{formErrors.branch_id ?? ' '}</FormHelperText>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
             <TextField
-              type="number"
-              value={formValues.age ?? ''}
-              onChange={handleNumberFieldChange}
-              name="age"
-              label="Age"
-              error={!!formErrors.age}
-              helperText={formErrors.age ?? ' '}
+              value={formValues.position ?? ''}
+              onChange={handleTextFieldChange}
+              name="position"
+              label="Position"
+              placeholder="e.g. Branch Manager, Cashier"
+              error={!!formErrors.position}
+              helperText={formErrors.position ?? ' '}
+              fullWidth
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
+            <TextField
+              value={formValues.contact_number ?? ''}
+              onChange={handleTextFieldChange}
+              name="contact_number"
+              label="Contact number"
+              error={!!formErrors.contact_number}
+              helperText={formErrors.contact_number ?? ' '}
               fullWidth
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
-                value={formValues.joinDate ? dayjs(formValues.joinDate) : null}
-                onChange={handleDateFieldChange('joinDate')}
-                name="joinDate"
-                label="Join date"
+                value={formValues.hire_date ? dayjs(formValues.hire_date) : null}
+                onChange={handleDateFieldChange('hire_date')}
+                name="hire_date"
+                label="Hire date"
                 slotProps={{
                   textField: {
-                    error: !!formErrors.joinDate,
-                    helperText: formErrors.joinDate ?? ' ',
+                    error: !!formErrors.hire_date,
+                    helperText: formErrors.hire_date ?? ' ',
                     fullWidth: true,
                   },
                 }}
@@ -193,39 +229,20 @@ export default function EmployeeForm(props: EmployeeFormProps) {
             </LocalizationProvider>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
-            <FormControl error={!!formErrors.role} fullWidth>
-              <InputLabel id="employee-role-label">Department</InputLabel>
-              <Select
-                value={formValues.role ?? ''}
-                onChange={handleSelectFieldChange as SelectProps['onChange']}
-                labelId="employee-role-label"
-                name="role"
-                label="Department"
-                defaultValue=""
-                fullWidth
-              >
-                <MenuItem value="Market">Market</MenuItem>
-                <MenuItem value="Finance">Finance</MenuItem>
-                <MenuItem value="Development">Development</MenuItem>
-              </Select>
-              <FormHelperText>{formErrors.role ?? ' '}</FormHelperText>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
             <FormControl>
               <FormControlLabel
-                name="isFullTime"
+                name="is_active"
                 control={
                   <Checkbox
                     size="large"
-                    checked={formValues.isFullTime ?? false}
+                    checked={formValues.is_active ?? true}
                     onChange={handleCheckboxFieldChange}
                   />
                 }
-                label="Full-time"
+                label="Active"
               />
-              <FormHelperText error={!!formErrors.isFullTime}>
-                {formErrors.isFullTime ?? ' '}
+              <FormHelperText error={!!formErrors.is_active}>
+                {formErrors.is_active ?? ' '}
               </FormHelperText>
             </FormControl>
           </Grid>

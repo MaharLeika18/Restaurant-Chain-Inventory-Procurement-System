@@ -57,9 +57,11 @@ The system can calculate when another order needs to be placed.
 
 ## Installation:
 In your terminal:
-1. cd to project directory
+1. cd to project directory `Restaurant-Chain-Inventory-Procurement-System`
 2. `python -m venv .venv`
 3. `pip install -r requirements.txt`
+4. cp .env.example .env
+5. then edit DATABASE_URL for your local Postgres
 
 To run the web app:
 1. `cd restaurant-chain-inventory`
