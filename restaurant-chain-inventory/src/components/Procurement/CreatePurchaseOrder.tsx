@@ -19,6 +19,11 @@ import {
   TableRow,
   Paper,
   Divider,
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Alert
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -31,7 +36,9 @@ import { api } from '../../api/client';
 // Recommendations grid and the reorder-predictions page both hand off rows
 // shaped like this via navigate(..., { state: { selectedItems } }).
 interface POItem {
-  id: string;
+  id: string;            // `${branchId}-${ingredientId}`, also the dedupe key
+  ingredientId: number;  // new
+  branchId: number;      // new
   ingredient: string;
   branch: string;
   currentStock: number;
@@ -45,6 +52,7 @@ interface POItem {
   lineTotal: number;
 }
 
+// Whatever your recommendations list produces
 interface PurchaseOrderData {
   supplier: string; // supplier_id, as a string (kept as string for the Select's value)
   branch: string; // branch_id, as a string
@@ -168,8 +176,110 @@ export default function CreatePurchaseOrder() {
     }));
   };
 
-  const handleAddItem = () => {
-    notifications.show('Add item functionality coming soon - for now, start from Reorder Recommendations.', { severity: 'info', autoHideDuration: 4000 });
+  const [addOpen, setAddOpen] = useState(false);
+  const [ingredientOptions, setIngredientOptions] = useState<any[]>([]); // /ingredients/
+  const [stockByIngredient, setStockByIngredient] = useState<Map<number, any>>(new Map());
+  const [newIngredientId, setNewIngredientId] = useState('');
+  const [newQty, setNewQty] = useState<number>(1);
+  const [newLinks, setNewLinks] = useState<any[]>([]); // supplier links for the chosen ingredient
+  const [newUnitCost, setNewUnitCost] = useState<number>(0);
+
+  const handleAddItem = async () => {
+    if (!poData.branch) {
+      notifications.show('Select a branch before adding items.', { severity: 'warning', autoHideDuration: 4000 });
+      return;
+    }
+    setNewIngredientId('');
+    setNewQty(1);
+    setNewLinks([]);
+    setNewUnitCost(0);
+    setAddOpen(true);
+
+    // Load once per open: the catalog, plus this branch's stock and PAR levels
+    try {
+      const [ingredients, stock] = await Promise.all([
+        api.get('/ingredients/?limit=500'),
+        api.get(`/inventory/branch/${poData.branch}`),
+      ]);
+      setIngredientOptions(ingredients);
+      setStockByIngredient(new Map(stock.map((s: any) => [s.ingredient_id, s])));
+    } catch (e: any) {
+      notifications.show(`Could not load ingredients: ${e.message}`, { severity: 'error', autoHideDuration: 4000 });
+    }
+  };
+
+  // When an ingredient is chosen, look up who supplies it and at what cost
+  const handleIngredientPick = async (idStr: string) => {
+    setNewIngredientId(idStr);
+    setNewLinks([]);
+    setNewUnitCost(0);
+    if (!idStr) return;
+
+    const links = await api.get(`/suppliers/ingredient-links/by-ingredient/${idStr}`);
+    setNewLinks(links);
+
+    // Use the PO's supplier if one is chosen, otherwise the preferred (or first) supplier
+    const link = poData.supplier
+      ? links.find((l: any) => String(l.supplier_id) === poData.supplier)
+      : links.find((l: any) => l.is_preferred) ?? links[0];
+    setNewUnitCost(link ? Number(link.unit_cost) : 0);
+  };
+
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const handleConfirmAdd = () => {
+    const ingredientId = Number(newIngredientId);
+    const ingredient = ingredientOptions.find((i) => i.ingredient_id === ingredientId);
+    if (!ingredient) return;
+
+    if (poData.items.some((i) => i.ingredientId === ingredientId)) {
+      notifications.show(`${ingredient.ingredient_name} is already in this PO.`, { severity: 'info', autoHideDuration: 4000 });
+      return;
+    }
+    if (newQty <= 0) {
+      notifications.show('Quantity must be greater than 0.', { severity: 'warning', autoHideDuration: 4000 });
+      return;
+    }
+
+    // Pick the supplier link: the PO's supplier, else preferred/first
+    const link = poData.supplier
+      ? newLinks.find((l) => String(l.supplier_id) === poData.supplier)
+      : newLinks.find((l) => l.is_preferred) ?? newLinks[0];
+
+    if (poData.supplier && !link) {
+      notifications.show(`${ingredient.ingredient_name} isn't offered by the selected supplier.`, { severity: 'warning', autoHideDuration: 4000 });
+      return;
+    }
+
+    const stock = stockByIngredient.get(ingredientId);
+    const currentStock = Number(stock?.current_stock ?? 0);
+    const parLevel = Number(stock?.par_level ?? 0);
+
+    const newItem = {
+      id: String(ingredientId),
+      ingredientId,
+      branchId: Number(poData.branch),
+      ingredient: ingredient.ingredient_name,
+      branch: poData.branch, // however you display the selected branch; swap in your variable
+      currentStock,
+      parLevel,
+      recommendedQty: Math.max(0, Math.ceil(parLevel - currentStock)),
+      suggestedSupplier: link ? poData.supplier : 'None configured',
+      suggestedSupplierId: link?.supplier_id ?? null,
+      urgency: parLevel > 0 && currentStock / parLevel <= 0.5 ? 'Critical'
+            : parLevel > 0 && currentStock <= parLevel ? 'Low' : 'Normal',
+      quantity: newQty,
+      unitCost: newUnitCost,
+      lineTotal: round2(newQty * newUnitCost),
+    };
+
+    setPoData((prev) => ({
+      ...prev,
+      // First item fixes the supplier, so later items must come from the same one
+      supplier: prev.supplier || (link ? String(link.supplier_id) : ''),
+      items: [...prev.items, newItem as any],
+    }));
+    setAddOpen(false);
   };
 
   const [submitting, setSubmitting] = useState(false);
@@ -390,6 +500,58 @@ export default function CreatePurchaseOrder() {
             </TableContainer>
           )}
         </Box>
+        <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="xs">
+          <DialogTitle>Add item</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                select
+                size="small"
+                label="Ingredient"
+                value={newIngredientId}
+                onChange={(e) => handleIngredientPick(e.target.value)}
+              >
+                {ingredientOptions
+                  .filter((i) => !poData.items.some((it) => it.ingredientId === i.ingredient_id))
+                  .map((i) => (
+                    <MenuItem key={i.ingredient_id} value={String(i.ingredient_id)}>
+                      {i.ingredient_name} ({i.unit_of_measure})
+                    </MenuItem>
+                  ))}
+              </TextField>
+
+              {newIngredientId && newLinks.length === 0 && (
+                <Alert severity="warning">No supplier is configured for this ingredient.</Alert>
+              )}
+
+              <TextField
+                size="small"
+                type="number"
+                label="Quantity"
+                value={newQty}
+                onChange={(e) => setNewQty(parseFloat(e.target.value) || 0)}
+                inputProps={{ min: 0, step: 'any' }}
+              />
+              <TextField
+                size="small"
+                type="number"
+                label="Unit cost"
+                value={newUnitCost}
+                onChange={(e) => setNewUnitCost(parseFloat(e.target.value) || 0)}
+                inputProps={{ min: 0, step: 0.01 }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                Line total: {round2(newQty * newUnitCost).toFixed(2)}
+              </Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button variant="contained" disabled={!newIngredientId || newQty <= 0} onClick={handleConfirmAdd}>
+              Add to PO
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* <Divider /> */}
 
@@ -408,3 +570,4 @@ export default function CreatePurchaseOrder() {
     </PageContainer>
   );
 }
+

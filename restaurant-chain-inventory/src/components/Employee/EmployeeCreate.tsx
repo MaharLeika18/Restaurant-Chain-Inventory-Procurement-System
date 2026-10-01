@@ -16,7 +16,7 @@ export default function EmployeeCreate() {
     initialValues: INITIAL_FORM_VALUES,
     validate: validateEmployee,
     onSubmit: async (values) => {
-      await createOneEmployee(values as Omit<Employee, 'id'>);
+      await create_employee(values as Omit<Employee, 'id'>);
     },
     successMessage: 'Employee created successfully.',
     failureMessagePrefix: 'Failed to create employee. Reason:',

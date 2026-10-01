@@ -185,10 +185,10 @@ export default function ReceivePurchaseOrder() {
                 <Box
                   key={item.id}
                   sx={{
-                    border: '1px solid #ccc',
+                    // border: '1px solid #ccc',
                     borderRadius: '4px',
                     padding: 2,
-                    backgroundColor: '#f9f9f9',
+                    // backgroundColor: '#f9f9f9',
                   }}
                 >
                   <Typography variant="subtitle1" gutterBottom>
