@@ -23,50 +23,34 @@ import {
 } from '@mui/material';
 import PageContainer from '../PageContainer';
 import React from 'react';
+import { api } from '../../api/client';
+import { useBranch } from '../../context/BranchContext';
+import useNotifications from '../../hooks/useNotifications/useNotifications';
 import {
   GridFilterModel,
   GridPaginationModel,
   GridSortModel,
 } from '@mui/x-data-grid';
 
-// TODO: Define proper MenuItem type based on your data structure
+// Matches app/schemas/menu.py's MenuItemOut - see GET /menu/
 interface MenuItem {
-  id: string;
+  id: string; // menu_item_id, as a string (the cart/table code below key off it)
   name: string;
   price: number;
-  // Add other menu item properties as needed
 }
 
-// TODO: Define OrderItem type
 interface OrderItem extends MenuItem {
   quantity: number;
 }
 
-// Mock data for menu items
-const mockMenuItems: MenuItem[] = [
-  { id: '1', name: 'Burger', price: 12.99 },
-  { id: '2', name: 'Pizza', price: 14.99 },
-  { id: '3', name: 'Salad', price: 9.99 },
-  { id: '4', name: 'Pasta', price: 13.50 },
-  { id: '5', name: 'Steak', price: 22.99 },
-  { id: '6', name: 'Fish', price: 18.99 },
-  { id: '7', name: 'Chicken Wings', price: 11.99 },
-  { id: '8', name: 'Soup', price: 8.99 },
-  { id: '9', name: 'Dessert', price: 7.99 },
-  { id: '10', name: 'Beverage', price: 3.99 },
-  { id: '11', name: 'Appetizer', price: 10.99 },
-  { id: '12', name: 'Side', price: 5.99 },
-  { id: '13', name: 'Sandwich', price: 11.50 },
-  { id: '14', name: 'Tacos', price: 10.99 },
-  { id: '15', name: 'Ramen', price: 12.50 },
-];
+const LABEL_TRANSFORM = 'translate(10px, 4px) scale(1)';
 
 const getLabelSx = (theme: any) => ({
   '& .MuiInputBase-root': {
     marginTop: '15px',
   },
   '& .MuiInputLabel-root': {
-    transform: 'translate(10px, 4px) scale(1)',
+    transform: LABEL_TRANSFORM,
     px: '4px',
     zIndex: 1,
     background: `linear-gradient(
@@ -77,7 +61,7 @@ const getLabelSx = (theme: any) => ({
       transparent calc(50% + 2px)
     )`,
     '&.MuiInputLabel-shrink, &.Mui-focused, &.MuiInputLabel-shrink.Mui-focused': {
-      transform: 'translate(10px, 4px) scale(1)',
+      transform: LABEL_TRANSFORM,
     },
     '&.Mui-focused': {
       zIndex: 10,
@@ -89,6 +73,9 @@ export default function PointOfSale() {
   const navigate = useNavigate();
   const theme = useTheme();
   const [cart, setCart] = useState<OrderItem[]>([]);
+  const { branchId } = useBranch();
+  const notifications = useNotifications();
+  const [submitting, setSubmitting] = useState(false);
 
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
     page: 0,
@@ -96,12 +83,27 @@ export default function PointOfSale() {
   });
   const [filterModel, setFilterModel] = useState<GridFilterModel>({ items: [] });
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
-  const [filteredItems, setFilteredItems] = useState<MenuItem[]>(mockMenuItems);
-  const [displayItems, setDisplayItems] = useState<MenuItem[]>(mockMenuItems);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+  const [displayItems, setDisplayItems] = useState<MenuItem[]>([]);
+
+  React.useEffect(() => {
+    api
+      .get('/menu/?limit=500')
+      .then((rows: any[]) =>
+        setMenuItems(
+          rows
+            .filter((m) => m.is_active)
+            .map((m) => ({ id: String(m.menu_item_id), name: m.dish_name, price: m.price })),
+        ),
+      )
+      .catch((e) => setMenuError(e.message));
+  }, []);
 
   React.useEffect(() => {
     // Apply filtering
-    let filtered = [...mockMenuItems];
+    let filtered = [...menuItems];
 
     if (filterModel.items.length > 0) {
       filterModel.items.forEach((filter: any) => {
@@ -141,7 +143,7 @@ export default function PointOfSale() {
     const start = paginationModel.page * paginationModel.pageSize;
     const end = start + paginationModel.pageSize;
     setDisplayItems(filtered.slice(start, end));
-  }, [filterModel, sortModel, paginationModel]);
+  }, [menuItems, filterModel, sortModel, paginationModel]);
 
   const handleAddToCart = (item: MenuItem) => {
     setCart((prevCart) => {
@@ -191,11 +193,24 @@ export default function PointOfSale() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [sortFocused, setSortFocused] = useState(false);
 
-  const handleFinalizeOrder = () => {
-    // TODO: Send order data to backend API
-    console.log('Order finalized:', { items: cart, total: totalPrice });
-    setCart([]);
-    // TODO: Show confirmation message or redirect to order confirmation page
+  const handleFinalizeOrder = async () => {
+    if (branchId == null || cart.length === 0) return;
+    setSubmitting(true);
+    try {
+      const order = await api.post('/orders/', {
+        branch_id: branchId,
+        items: cart.map((item) => ({ menu_item_id: Number(item.id), quantity: item.quantity })),
+      });
+      // A POS ring-up is a completed sale, not a tab left open - finalize it
+      // right away so the ingredients actually get deducted.
+      await api.post(`/orders/${order.order_id}/finalize`);
+      notifications.show(`Order #${order.order_id} rung up.`, { severity: 'success', autoHideDuration: 3000 });
+      setCart([]);
+    } catch (err) {
+      notifications.show(`Couldn't finalize the order: ${(err as Error).message}`, { severity: 'error', autoHideDuration: 6000 });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const totalPages = Math.ceil(filteredItems.length / paginationModel.pageSize);
@@ -208,13 +223,13 @@ export default function PointOfSale() {
         <Button
           variant="contained"
           startIcon={<HistoryIcon />}
-          onClick={() => navigate('/order_processing/order_history')}
+          onClick={() => navigate('/sales/order_log')}
         >
           Order History
         </Button>
       }
     >
-      <Box sx={{ display: 'flex', gap: 3, overflow: 'hidden', height: '100%' }}>
+      <Box sx={{ display: 'flex', gap: 3, height: '100%', overflow: 'hidden' }}>
         {/* Menu Items Section - 2/3 of the space */}
         <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header with Title and Controls */}
@@ -281,6 +296,9 @@ export default function PointOfSale() {
                         height: '100%',
                     }}
                     >
+                    {menuError && (
+                      <Typography color="error" sx={{ gridColumn: '1 / -1', p: 2 }}>{menuError}</Typography>
+                    )}
                     {displayItems.map((item) => (
                         <TableRow
                         key={item.id}
@@ -350,7 +368,6 @@ export default function PointOfSale() {
         <Paper
           sx={{
             flex: 1,
-            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             p: 2,
@@ -367,7 +384,6 @@ export default function PointOfSale() {
             sx={{
               flex: 1,
               minHeight: 0,
-              maxHeight: 345,
               overflowY: 'auto',
               mb: 2,
               pr: 1,
@@ -392,9 +408,13 @@ export default function PointOfSale() {
                 {cart.map((item) => (
                   <Paper key={item.id} 
                     sx={{
-                        flexShrink: 0,   
+                        flex: 1,
+                        minHeight: 0,      
+                        display: 'flex',
+                        flexDirection: 'column',
                         p: 2,
                         bgcolor: 'background.default',
+                        overflow: 'hidden',
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
@@ -425,21 +445,7 @@ export default function PointOfSale() {
                         //     handleUpdateQuantity(item.id, Math.max(0, parseInt(e.target.value) || 0))
                         //   }
                         //   inputProps={{ min: 0, max: 999, style: { textAlign: 'center', padding: '4px' } }}
-                          sx={{
-                            width: '50px',
-                            height: '32px',
-                            mb: '15px',
-                            '& input': { height: '32px', padding: 0, textAlign: 'center' },
-                            // Chrome, Safari, Edge
-                            '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                              WebkitAppearance: 'none',
-                              margin: 0,
-                            },
-                            // Firefox
-                            '& input[type=number]': {
-                              MozAppearance: 'textfield',
-                            },
-                          }}
+                          sx={{ width: '50px', height: '32px', mb: '15px','& input': { height: '32px', padding: 0 } }}
                         />
                         <IconButton
                           size="small"
@@ -487,10 +493,10 @@ export default function PointOfSale() {
             color="success"
             size="large"
             onClick={handleFinalizeOrder}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || submitting || branchId == null}
             sx={{ width: '100%', flexShrink: 0 }}
           >
-            Finalize Order
+            {submitting ? 'Finalizing…' : 'Finalize Order'}
           </Button>
         </Paper>
       </Box>

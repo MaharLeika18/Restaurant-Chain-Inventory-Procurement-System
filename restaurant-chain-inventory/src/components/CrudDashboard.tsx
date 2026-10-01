@@ -6,6 +6,8 @@ import EmployeeList from './Employee/EmployeeList.tsx';
 import EmployeeShow from './Employee/EmployeeShow.tsx';
 import EmployeeCreate from './Employee/EmployeeCreate.tsx';
 import EmployeeEdit from './Employee/EmployeeEdit.tsx';
+import Login from './Login.jsx';
+import RequireAuth from './RequireAuth.tsx';
 import BuildDemandForecast from './DemandForecasts/BuildDemandForecast.tsx'
 import PointOfSale from './POS/PointOfSale.tsx'
 import Inventory from './InventoryOperations/Inventory.tsx'
@@ -19,6 +21,7 @@ import NotificationsProvider from '../hooks/useNotifications/NotificationsProvid
 import DialogsProvider from '../hooks/useDialogs/DialogsProvider.tsx';
 import AppTheme from '../theme/AppTheme.tsx';
 import { BranchProvider } from '../context/BranchContext.jsx';
+import { AuthProvider } from '../context/AuthContext.jsx';
 import ResourcePage from './Resource/ResourcePage.tsx';
 import ComingSoon from './ComingSoon.tsx';
 import { resources } from '../resources/index.ts';
@@ -30,8 +33,13 @@ import {
 } from '../theme/customizations/index.ts';
 
 const router = createHashRouter([
+  { path: '/login', Component: Login },
   {
-    Component: DashboardLayout,
+    element: (
+      <RequireAuth>
+        <DashboardLayout />
+      </RequireAuth>
+    ),
     children: [
       {
         path: '/dashboard',
@@ -118,9 +126,11 @@ export default function CrudDashboard(props: { disableCustomTheme?: boolean }) {
       <CssBaseline enableColorScheme />
       <NotificationsProvider>
         <DialogsProvider>
-          <BranchProvider>
-            <RouterProvider router={router} />
-          </BranchProvider>
+          <AuthProvider>
+            <BranchProvider>
+              <RouterProvider router={router} />
+            </BranchProvider>
+          </AuthProvider>
         </DialogsProvider>
       </NotificationsProvider>
     </AppTheme>
