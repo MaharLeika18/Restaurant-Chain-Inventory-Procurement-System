@@ -42,6 +42,13 @@ export const api = {
   // Auth
   login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   me: () => request('/auth/me'),
+
+  // Dashboard - consumption and forecast data
+  getIngredientConsumption: (branchId, days = 30) => 
+    request(`/dashboard/branch/${branchId}/consumption?days=${days}`),
+  
+  getDemandForecast: (branchId, ingredientId) => 
+    request(`/dashboard/branch/${branchId}/forecast/${ingredientId}`),
 };
 
 export function setToken(token) {
