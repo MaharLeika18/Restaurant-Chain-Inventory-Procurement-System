@@ -44,11 +44,11 @@ export const api = {
   me: () => request('/auth/me'),
 
   // Dashboard - consumption and forecast data
-  getIngredientConsumption: (branchId, days = 30) => 
-    request(`/dashboard/branch/${branchId}/consumption?days=${days}`),
+  getIngredientConsumption: (branchId, days = 30) =>
+    request(`/cruddashboard/branch/${branchId}/consumption?days=${days}`),
   
-  getDemandForecast: (branchId, ingredientId) => 
-    request(`/dashboard/branch/${branchId}/forecast/${ingredientId}`),
+  getDemandForecast: (branchId, ingredientId) =>
+    request(`/cruddashboard/branch/${branchId}/forecast/${ingredientId}`),
 };
 
 export function setToken(token) {

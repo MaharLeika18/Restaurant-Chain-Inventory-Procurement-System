@@ -17,3 +17,4 @@ class IngredientForecastOut(BaseModel):
     dates: list[date]
     predicted: list[float | None]
     actual: list[float | None]
+

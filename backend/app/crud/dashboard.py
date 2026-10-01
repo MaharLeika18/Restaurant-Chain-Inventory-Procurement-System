@@ -168,19 +168,16 @@ def save_forecast(
     future_dates: list[date],
     future_values: list[float],
     method: str,
+    history_days: int,
 ) -> None:
-    """
-    Persist future forecast points as DemandForecast records.
-    """
     generated_at = datetime.utcnow()
-
     db.add_all(
         [
             DemandForecast(
                 branch_id=branch_id,
                 ingredient_id=ingredient_id,
                 method=method,
-                historical_days_used=len(future_values),
+                historical_days_used=history_days,
                 forecast_daily_demand=float(v),
                 forecast_period_days=len(future_dates),
                 forecast_total_demand=float(sum(future_values)),
@@ -191,3 +188,71 @@ def save_forecast(
         ]
     )
     db.commit()
+    
+
+def build_forecast(
+    dates: list[date], daily: list[float], horizon: int, window: int = 14
+) -> dict:
+    """
+    Past days: predicted = average of the previous `window` days (backtest).
+    Future days: predicted = average of the last `window` days, actual = None.
+    """
+    predicted: list[float | None] = []
+    for i in range(len(daily)):
+        prior = daily[max(0, i - window):i]
+        predicted.append(round(sum(prior) / len(prior), 2) if prior else None)
+
+    recent = daily[-window:]
+    future_avg = round(sum(recent) / len(recent), 2) if recent else 0.0
+    future_dates = [dates[-1] + timedelta(days=i + 1) for i in range(horizon)]
+
+    return {
+        "dates": dates + future_dates,
+        "predicted": predicted + [future_avg] * horizon,
+        "actual": [round(v, 2) for v in daily] + [None] * horizon,
+    }
+
+from app.models.inventory import BranchIngredient, Batch
+from app.models.ingredient import IngredientCategory
+
+
+def get_low_stock_chart(db: Session, branch_id: int, limit: int = 10) -> dict:
+    rows = (
+        db.query(
+            Ingredient.ingredient_name,
+            BranchIngredient.current_stock,
+            BranchIngredient.par_level,
+        )
+        .join(Ingredient, Ingredient.ingredient_id == BranchIngredient.ingredient_id)
+        .filter(BranchIngredient.branch_id == branch_id, BranchIngredient.par_level > 0)
+        .all()
+    )
+    # Lowest stock relative to PAR first
+    rows.sort(key=lambda r: float(r.current_stock) / float(r.par_level))
+    below = sum(1 for r in rows if float(r.current_stock) < float(r.par_level))
+    rows = rows[:limit]
+    return {
+        "categories": [r.ingredient_name for r in rows],
+        "current": [round(float(r.current_stock), 2) for r in rows],
+        "par": [round(float(r.par_level), 2) for r in rows],
+        "below_par_count": below,
+    }
+
+
+def get_inventory_valuation(db: Session, branch_id: int) -> dict:
+    value = func.sum(Batch.quantity_remaining * Batch.unit_cost).label("value")
+    rows = (
+        db.query(IngredientCategory.category_name, value)
+        .join(Ingredient, Ingredient.category_id == IngredientCategory.category_id)
+        .join(Batch, Batch.ingredient_id == Ingredient.ingredient_id)
+        .filter(Batch.branch_id == branch_id, Batch.quantity_remaining > 0)
+        .group_by(IngredientCategory.category_name)
+        .order_by(value.desc())
+        .all()
+    )
+    values = [round(float(r.value), 2) for r in rows]
+    return {
+        "categories": [r.category_name for r in rows],
+        "values": values,
+        "total": round(sum(values), 2),
+    }

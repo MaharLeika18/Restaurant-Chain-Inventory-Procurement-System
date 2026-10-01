@@ -6,6 +6,10 @@ import Stack from '@mui/material/Stack';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { useTheme } from '@mui/material/styles';
 import CustomizedTabs from './CustomizedTabs';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import { useBranch } from '../../context/BranchContext'; // same import your line chart uses
+import { useStockCharts } from '../../hooks/useStockCharts';
 
 interface BarPanelProps {
   stat: string;
@@ -15,9 +19,22 @@ interface BarPanelProps {
   categories: string[];
   series: any[];
   colorPalette: string[];
+  loading?: boolean;
+  error?: string | null;
+
 }
 
-function BarPanel({ stat, delta, deltaColor, subtitle, categories, series, colorPalette }: BarPanelProps) {
+function BarPanel({ stat, delta, deltaColor, subtitle, categories, series, colorPalette, loading, error }: BarPanelProps) {
+  if (loading) {
+    return <Stack sx={{ height: 250, alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></Stack>;
+  }
+  if (error) return <Alert severity="error">{error}</Alert>;
+  if (categories.length === 0) {
+    return <Stack sx={{ height: 250, alignItems: 'center', justifyContent: 'center' }}>
+      <Typography variant="body2" color="text.secondary">No data available</Typography>
+    </Stack>;
+  }
+
   return (
     <>
       <Stack sx={{ justifyContent: 'space-between' }}>
@@ -63,37 +80,14 @@ function BarPanel({ stat, delta, deltaColor, subtitle, categories, series, color
 
 export default function CustomBarChart() {
   const theme = useTheme();
+  const { branchId } = useBranch();
+  const { low, val } = useStockCharts(branchId);
+
   const colorPalette = [
     (theme.vars || theme).palette.primary.dark,
     (theme.vars || theme).palette.primary.main,
     (theme.vars || theme).palette.primary.light,
   ];
-
-  const categories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-
-  // TODO: REPLACE THIS WITH SQLALCHEMY + POSTGRESQL
-  const lowStocksSeries = [
-    {
-      id: 'page-views',
-      label: 'Page views',
-      data: [2234, 3872, 2998, 4125, 3357, 2789, 2998],
-      stack: 'A',
-    },
-    {
-      id: 'downloads',
-      label: 'Downloads',
-      data: [3098, 4215, 2384, 2101, 4752, 3593, 2384],
-      stack: 'A',
-    },
-    {
-      id: 'conversions',
-      label: 'Conversions',
-      data: [4051, 2275, 3129, 4693, 3904, 2038, 2275],
-      stack: 'A',
-    },
-  ];
-
-  const chart2Series = lowStocksSeries;
 
   return (
     <Card variant="outlined" sx={{ width: '100%' }}>
@@ -104,14 +98,15 @@ export default function CustomBarChart() {
               label: 'Low Stocks',
               content: (
                 <BarPanel
-                  stat="1.3M"
-                  delta="-8%"
-                  deltaColor="error"
-                  subtitle="current stock vs. PAR level, one bar per ingredient"
-                  categories={categories}
-                  series={lowStocksSeries}
+                  stat={String(low.belowPar)}
+                  delta={low.belowPar > 0 ? 'Below PAR' : 'All stocked'}
+                  deltaColor={low.belowPar > 0 ? 'error' : 'success'}
+                  subtitle="Current stock vs. PAR level, lowest first"
+                  categories={low.categories}
+                  series={low.series}
                   colorPalette={colorPalette}
-                  
+                  loading={low.loading}
+                  error={low.error}
                 />
               ),
             },
@@ -119,14 +114,15 @@ export default function CustomBarChart() {
               label: 'Inventory Valuation',
               content: (
                 <BarPanel
-                  stat="0"
-                  delta="+0%"
-                  deltaColor="success"
-                  subtitle="valuation by category, over time or by branch"
-                  categories={categories}
-                  series={chart2Series}
+                  stat={`$${val.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+                  delta="Current"
+                  deltaColor="default"
+                  subtitle="Inventory value by ingredient category"
+                  categories={val.categories}
+                  series={val.series}
                   colorPalette={colorPalette}
-
+                  loading={val.loading}
+                  error={val.error}
                 />
               ),
             },

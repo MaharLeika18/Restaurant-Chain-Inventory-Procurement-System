@@ -136,11 +136,11 @@ export default function MainGrid() {
           <CustomBarChart />
         </Grid>
       </Grid>
-      <Grid container spacing={2} columns={12}>
+      {/* <Grid container spacing={2} columns={12}> */}
         <Grid size={{ xs: 12, lg: 9 }}>
           <CustomizedDataGrid />
         </Grid>
-        <Grid size={{ xs: 12, lg: 3 }}>
+        {/* <Grid size={{ xs: 12, lg: 3 }}>
           <Stack
             direction={{ xs: 'column', sm: 'row', lg: 'column' }}
             sx={{ gap: 2 }}
@@ -148,8 +148,8 @@ export default function MainGrid() {
             <CustomizedRadarChart />
             <CustomizedPieChart />
           </Stack>
-        </Grid>
-      </Grid>
+        </Grid> */}
+      {/* </Grid> */}
     </Box>
   );
 }
