@@ -23,6 +23,7 @@ from app.routers import (
     reorder,
     forecasting,
     reports,
+    dashboard,
 )
 
 @asynccontextmanager
@@ -76,3 +77,4 @@ app.include_router(stock_transfers.router)
 app.include_router(reorder.router)
 app.include_router(forecasting.router)
 app.include_router(reports.router)
+app.include_router(dashboard.router)
