@@ -24,6 +24,8 @@ import MenuItem from '@mui/material/MenuItem';
 import ForecastLineChart from './ForecastLineChart';
 import ForecastTable from './ForecastTable'
 import { useBranch } from '../../context/BranchContext';
+import { getLabelSx } from '../../utils/styles.ts';
+import { useTheme } from '@mui/material/styles';
 
 const xThemeComponents = {
   ...chartsCustomizations,
@@ -34,6 +36,7 @@ const xThemeComponents = {
 
 export default function DemandForecastPage(props: { disableCustomTheme?: boolean }) {
   const { branches, branchId, setBranchId, loading } = useBranch();
+  const theme = useTheme();
 
   return (
     <AppTheme {...props} themeComponents={xThemeComponents}>
@@ -65,11 +68,16 @@ export default function DemandForecastPage(props: { disableCustomTheme?: boolean
                 <Typography component="h2" variant="h6" sx={{ mt:'5px' }}>
                   Demand Forecast
                 </Typography>
-                <FormControl size="small" sx={{ minWidth: 150, ml: 'auto' }}>
-                  <InputLabel>Branch</InputLabel>
+                <FormControl
+                  size="small"
+                  sx={{ ...getLabelSx(theme), minWidth: 220, ml: 'auto' }}
+                >
+                  <InputLabel shrink>Branch</InputLabel>
                   <Select
                     value={branchId || ''}
                     label="Branch"
+                    notched
+                    displayEmpty
                     onChange={(e) => setBranchId(Number(e.target.value))}
                     disabled={loading || branches.length === 0}
                   >

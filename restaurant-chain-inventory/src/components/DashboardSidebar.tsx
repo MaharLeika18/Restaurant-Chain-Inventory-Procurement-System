@@ -32,6 +32,8 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BatchPredictionIcon from '@mui/icons-material/BatchPrediction';
 import StarsIcon from '@mui/icons-material/Stars';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
 
 import { matchPath, useLocation } from 'react-router';
 import DashboardSidebarContext from '../context/DashboardSidebarContext';
@@ -178,7 +180,7 @@ export default function DashboardSidebar({
             <DashboardSidebarPageItem
               id="dashboard"
               title="Dashboard"
-              icon={<CircleIcon />}
+              icon={<DashboardIcon />}
               href="/dashboard"
               selected={!!matchPath('/dashboard/*', pathname) || pathname === '/'}
             />
@@ -187,28 +189,28 @@ export default function DashboardSidebar({
             <DashboardSidebarPageItem
               id="order_processing"
               title="Order Processing"
-              icon={<CircleIcon />}
+              icon={<PointOfSaleIcon />}
               href="/order_processing"
               selected={!!matchPath('/order_processing/*', pathname) || pathname === '/'}
             />
             <DashboardSidebarPageItem
               id="inventory_operations"
               title="Inventory Operations"
-              icon={<CircleIcon />}
+              icon={<Inventory2Icon />}
               href="/inventory_operations"
               selected={!!matchPath('/inventory_operations/*', pathname) || pathname === '/'}
             />
             <DashboardSidebarPageItem
               id="procurement_management"
-              title="Procurement Management"
-              icon={<CircleIcon />}
+              title="Purchase Orders"
+              icon={<LocalShippingIcon />}
               href="/procurement_management"
               selected={!!matchPath('/procurement_management/*', pathname) || pathname === '/'}
             />
             <DashboardSidebarPageItem
               id="demand_forecast"
               title="Demand Forecast"
-              icon={<CircleIcon />}
+              icon={<TrendingUpIcon />}
               href="/demand_forecast"
               selected={!!matchPath('/demand_forecast/*', pathname) || pathname === '/'}
             />
