@@ -11,6 +11,7 @@ import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import Stack from '@mui/material/Stack';
 import { Link } from 'react-router';
 import ThemeSwitcher from './ThemeSwitcher';
+import AccountMenu from './AccountMenu';
 
 const AppBar = styled(MuiAppBar)(({ theme }) => ({
   borderWidth: 0,
@@ -114,8 +115,9 @@ export default function DashboardHeader({
             spacing={1}
             sx={{ alignItems: 'center', marginLeft: 'auto' }}
           >
-            <Stack direction="row" sx={{ alignItems: 'center' }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <ThemeSwitcher />
+              <AccountMenu />
             </Stack>
           </Stack>
         </Stack>

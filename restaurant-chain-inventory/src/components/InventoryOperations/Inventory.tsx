@@ -30,10 +30,13 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { useNavigate } from 'react-router';
 import useNotifications from '../../hooks/useNotifications/useNotifications';
 import PageContainer from '../PageContainer';
+import { api } from '../../api/client';
+import { useBranch } from '../../context/BranchContext';
 
 // TODO: Define types based on your data structure
 interface InventoryItem {
   id: string;
+  ingredientId: number;
   ingredientName: string;
   category: string;
   currentQty: number;
@@ -54,94 +57,26 @@ interface InventoryBatch {
   sourcePO: string;
 }
 
-// TODO: Replace with actual API call
-const mockInventoryData: InventoryItem[] = [
-  {
-    id: '1',
-    ingredientName: 'Tomato Sauce',
-    category: 'Sauces',
-    currentQty: 45,
-    parLevel: 50,
-    status: 'Low',
-    unit: 'Liters',
-    nearestExpiry: '2025-03-15',
-    lastUpdated: '2025-09-30T10:30:00Z',
-  },
-  {
-    id: '2',
-    ingredientName: 'Mozzarella Cheese',
-    category: 'Dairy',
-    currentQty: 120,
-    parLevel: 100,
-    status: 'Overstock',
-    unit: 'kg',
-    nearestExpiry: '2025-10-20',
-    lastUpdated: '2025-09-30T11:00:00Z',
-  },
-  {
-    id: '3',
-    ingredientName: 'Olive Oil',
-    category: 'Oils',
-    currentQty: 12,
-    parLevel: 25,
-    status: 'Critical',
-    unit: 'Liters',
-    nearestExpiry: '2026-12-31',
-    lastUpdated: '2025-09-30T09:15:00Z',
-  },
-  {
-    id: '4',
-    ingredientName: 'Fresh Basil',
-    category: 'Herbs',
-    currentQty: 2,
-    parLevel: 5,
-    status: 'Low',
-    unit: 'Bunches',
-    nearestExpiry: '2025-10-05',
-    lastUpdated: '2025-09-30T08:45:00Z',
-  },
-  {
-    id: '5',
-    ingredientName: 'Flour (All-Purpose)',
-    category: 'Dry Goods',
-    currentQty: 150,
-    parLevel: 100,
-    status: 'OK',
-    unit: 'kg',
-    nearestExpiry: '2026-06-15',
-    lastUpdated: '2025-09-30T10:00:00Z',
-  },
-];
-
-// TODO: Replace with actual API call
-const mockBatchData: { [key: string]: InventoryBatch[] } = {
-  '1': [
-    { id: 'b1', batchNumber: 'BATCH-001', receivedDate: '2025-09-20', expiryDate: '2025-03-15', qtyRemaining: 45, unitCost: 2.5, sourcePO: 'PO-2025-001' },
-  ],
-  '2': [
-    { id: 'b2', batchNumber: 'BATCH-002', receivedDate: '2025-09-15', expiryDate: '2025-10-20', qtyRemaining: 60, unitCost: 8.0, sourcePO: 'PO-2025-002' },
-    { id: 'b3', batchNumber: 'BATCH-003', receivedDate: '2025-09-25', expiryDate: '2025-10-25', qtyRemaining: 60, unitCost: 8.0, sourcePO: 'PO-2025-003' },
-  ],
-  '3': [
-    { id: 'b4', batchNumber: 'BATCH-004', receivedDate: '2025-08-01', expiryDate: '2026-12-31', qtyRemaining: 12, unitCost: 15.0, sourcePO: 'PO-2025-004' },
-  ],
-  '4': [
-    { id: 'b5', batchNumber: 'BATCH-005', receivedDate: '2025-09-28', expiryDate: '2025-10-05', qtyRemaining: 2, unitCost: 0.5, sourcePO: 'PO-2025-005' },
-  ],
-  '5': [
-    { id: 'b6', batchNumber: 'BATCH-006', receivedDate: '2025-08-15', expiryDate: '2026-06-15', qtyRemaining: 150, unitCost: 0.8, sourcePO: 'PO-2025-006' },
-  ],
-};
+// Status is derived from current stock vs. PAR level - the backend doesn't
+// store a status enum, so this mirrors app/services/reorder.py's thresholds.
+function deriveStatus(current: number, par: number): InventoryItem['status'] {
+  if (par <= 0) return 'OK';
+  if (current <= par * 0.5) return 'Critical';
+  if (current <= par) return 'Low';
+  if (current > par * 1.5) return 'Overstock';
+  return 'OK';
+}
 
 // Collapsible Row Component
 interface InventoryRowProps {
   row: InventoryItem;
   batches: InventoryBatch[];
+  onExpand: () => void;
   onAdjustStock: () => void;
   onTransfer: () => void;
 }
 
-function InventoryRow({ row, batches, onAdjustStock, onTransfer }: InventoryRowProps) {
+function InventoryRow({ row, batches, onExpand, onAdjustStock, onTransfer }: InventoryRowProps) {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -169,7 +104,11 @@ function InventoryRow({ row, batches, onAdjustStock, onTransfer }: InventoryRowP
           <IconButton
             aria-label={open ? 'collapse row' : 'expand row'}
             size="small"
-            onClick={() => setOpen(!open)}
+            onClick={() => {
+              const next = !open;
+              setOpen(next);
+              if (next) onExpand();
+            }}
           >
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
@@ -315,9 +254,67 @@ export default function Inventory() {
   const notifications = useNotifications();
   const theme = useTheme();
 
+  const { branches, branchId, setBranchId } = useBranch();
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+  const [batchesByItem, setBatchesByItem] = useState<{ [key: string]: InventoryBatch[] }>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const loadInventory = React.useCallback(() => {
+    if (branchId == null) return;
+    Promise.all([api.get(`/inventory/branch/${branchId}`), api.get('/ingredients/?limit=500'), api.get('/ingredients/categories')])
+      .then(([stock, ingredients, categories]: any[]) => {
+        const ingredientById = new Map(ingredients.map((i: any) => [i.ingredient_id, i]));
+        const categoryById = new Map(categories.map((c: any) => [c.category_id, c.category_name]));
+        setInventoryData(
+          stock.map((s: any) => {
+            const ing = ingredientById.get(s.ingredient_id);
+            return {
+              id: String(s.branch_ingredient_id),
+              ingredientId: s.ingredient_id,
+              ingredientName: ing?.ingredient_name ?? `#${s.ingredient_id}`,
+              category: ing ? (categoryById.get(ing.category_id) ?? '—') : '—',
+              currentQty: s.current_stock,
+              parLevel: s.par_level,
+              status: deriveStatus(s.current_stock, s.par_level),
+              unit: ing?.unit_of_measure ?? '',
+              nearestExpiry: s.nearest_expiry_date ?? '—',
+              lastUpdated: s.last_updated,
+            } as InventoryItem;
+          }),
+        );
+      })
+      .catch((e) => setLoadError(e.message));
+  }, [branchId, refreshKey]);
+  React.useEffect(() => { loadInventory(); }, [loadInventory]);
+
+  const loadBatches = React.useCallback(
+    (item: InventoryItem) => {
+      if (branchId == null || batchesByItem[item.id]) return;
+      api
+        .get(`/inventory/batches/branch/${branchId}/ingredient/${item.ingredientId}?only_available=true`)
+        .then((rows: any[]) =>
+          setBatchesByItem((prev) => ({
+            ...prev,
+            [item.id]: rows.map((b) => ({
+              id: String(b.batch_id),
+              batchNumber: b.lot_number || `BATCH-${b.batch_id}`,
+              receivedDate: b.received_date,
+              expiryDate: b.expiration_date ?? '—',
+              qtyRemaining: b.quantity_remaining,
+              unitCost: b.unit_cost,
+              sourcePO: b.purchase_order_item_id ? `PO item #${b.purchase_order_item_id}` : '—',
+            })),
+          })),
+        )
+        .catch(() => {});
+    },
+    [branchId, batchesByItem],
+  );
+
   // Filtering and pagination state
-  const [filteredData, setFilteredData] = useState<InventoryItem[]>(mockInventoryData);
-  const [displayData, setDisplayData] = useState<InventoryItem[]>(mockInventoryData);
+  const [filteredData, setFilteredData] = useState<InventoryItem[]>([]);
+  const [displayData, setDisplayData] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -326,7 +323,7 @@ export default function Inventory() {
 
   // Update displayed data based on filters and pagination
   React.useEffect(() => {
-    let filtered = [...mockInventoryData];
+    let filtered = [...inventoryData];
 
     // Apply search filter
     if (searchTerm) {
@@ -360,7 +357,7 @@ export default function Inventory() {
     const start = currentPage * pageSize;
     const end = start + pageSize;
     setDisplayData(filtered.slice(start, end));
-  }, [searchTerm, sortField, sortOrder, currentPage, pageSize]);
+  }, [inventoryData, searchTerm, sortField, sortOrder, currentPage, pageSize]);
 
   const handleOpenAdjustStock = (item: InventoryItem) => {
     navigate(`/inventory_operations/${item.id}/adjust-stock`);
@@ -385,7 +382,7 @@ export default function Inventory() {
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Tooltip title="Reload data" placement="right" enterDelay={1000}>
             <div>
-              <IconButton size="small" onClick={() => setDisplayData([...displayData])}>
+              <IconButton size="small" onClick={() => setRefreshKey((k) => k + 1)}>
                 <RefreshIcon />
               </IconButton>
             </div>
@@ -401,6 +398,9 @@ export default function Inventory() {
       }
     >
       <Stack spacing={2} sx={{ height: '100%' }}>
+        {loadError && (
+          <Typography color="error">{loadError}</Typography>
+        )}
         {/* Search, Sort, and Filter Controls */}
         <Stack direction="row" spacing={2}>
           <TextField
@@ -474,7 +474,8 @@ export default function Inventory() {
                   <InventoryRow
                     key={item.id}
                     row={item}
-                    batches={mockBatchData[item.id] || []}
+                    batches={batchesByItem[item.id] || []}
+                    onExpand={() => loadBatches(item)}
                     onAdjustStock={() => handleOpenAdjustStock(item)}
                     onTransfer={() => handleOpenTransfer(item)}
                   />

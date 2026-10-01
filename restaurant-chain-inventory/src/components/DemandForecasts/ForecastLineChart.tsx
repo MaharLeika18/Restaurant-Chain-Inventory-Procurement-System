@@ -34,6 +34,8 @@ import {
   useChartId,
 } from '@mui/x-charts';
 import type { GridFilterModel } from '@mui/x-data-grid';
+import { api } from '../../api/client';
+import { useBranch } from '../../context/BranchContext';
 
 function AreaGradient({ color, id }: { color: string; id: string }) {
   return (
@@ -139,49 +141,31 @@ function ShadedBackground({ limit }: { limit: number }) {
   );
 }
 
-type IngredientOrBranchFilter = { type: 'ingredient' | 'branch'; value: string };
-
 function ForecastFilters({
-  filterModel,
-  onFilterModelChange,
+  ingredientId,
+  onIngredientChange,
   dateRange,
   onDateRangeChange,
-  ingredientOrBranchOptions,
+  ingredientOptions,
 }: {
-  filterModel: GridFilterModel;
-  onFilterModelChange: (model: GridFilterModel) => void;
+  ingredientId: string;
+  onIngredientChange: (id: string) => void;
   dateRange: { start: Dayjs | null; end: Dayjs | null };
   onDateRangeChange: (range: { start: Dayjs | null; end: Dayjs | null }) => void;
-  ingredientOrBranchOptions: { field: 'ingredient' | 'branch'; label: string; value: string }[];
+  ingredientOptions: { label: string; value: string }[];
 }) {
-  const selectedValue = (filterModel.items[0]?.value as string) ?? '';
-
-  const handleFilterChange = React.useCallback(
-    (event: SelectChangeEvent) => {
-      const raw = event.target.value;
-      if (!raw) {
-        onFilterModelChange({ items: [] });
-        return;
-      }
-      const [field, value] = raw.split('::') as ['ingredient' | 'branch', string];
-      onFilterModelChange({ items: [{ field, operator: 'equals', value }] });
-    },
-    [onFilterModelChange],
-  );
-
   return (
     <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
       <FormControl size="small" sx={{ minWidth: 200 }}>
-        <InputLabel id="forecast-filter-label">Ingredient / Branch</InputLabel>
+        <InputLabel id="forecast-filter-label">Ingredient</InputLabel>
         <Select
           labelId="forecast-filter-label"
-          label="Ingredient / Branch"
-          value={selectedValue ? `${filterModel.items[0]?.field}::${selectedValue}` : ''}
-          onChange={handleFilterChange}
+          label="Ingredient"
+          value={ingredientId}
+          onChange={(e) => onIngredientChange(e.target.value)}
         >
-          <MenuItem value="">All</MenuItem>
-          {ingredientOrBranchOptions.map((opt) => (
-            <MenuItem key={`${opt.field}::${opt.value}`} value={`${opt.field}::${opt.value}`}>
+          {ingredientOptions.map((opt) => (
+            <MenuItem key={opt.value} value={opt.value}>
               {opt.label}
             </MenuItem>
           ))}
@@ -251,7 +235,7 @@ function ChartPanel({
           <Typography variant="h4" component="p">
             {stat}
           </Typography>
-          <Chip size="small" color="success" label={delta} />
+          <Chip size="small" color="info" label={delta} />
         </Stack>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
           {subtitle}
@@ -323,111 +307,135 @@ function ChartPanel({
   );
 }
 
-// TODO: remove this before prod. sample backend data for reference.
-const sampleRow = {
-  date: '2024-05-14',
-  ingredient: 'Tomato',
-  branch: 'Downtown',
-  actual_qty: 42,
-  predicted_qty: 39,
-  predicted_lower: 35,
-  predicted_upper: 44,
-};
-
 export default function ForecastLineChart() {
   const theme = useTheme();
-  const data = getDaysInMonth(5, 2024);
-
+  const { branchId } = useBranch();
   const colorPalette = [theme.palette.primary.light, theme.palette.primary.main, theme.palette.primary.dark];
 
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({ items: [] });
+  const [ingredients, setIngredients] = React.useState<any[]>([]);
+  const [ingredientId, setIngredientId] = React.useState('');
   const [dateRange, setDateRange] = React.useState<{ start: Dayjs | null; end: Dayjs | null }>({
-    start: dayjs('2024-05-01'),
-    end: dayjs('2024-05-31'),
+    start: dayjs().subtract(30, 'day'),
+    end: dayjs().add(7, 'day'),
   });
 
-  // TODO: REPLACE WITH SQLALCHEMY + POSTGRESQL, fetch actual vs forecast series
-  const actualSeries: (number | null)[] = [
-    38, 40, 37, 39, 42, 41, 43,
-    40, 44, 46, 45, 43, 41,
-    42, // May 14: last known actual / forecast starting point
-    null, null, null, null, null, null,
-    null, null, null, null, null, null,
-    null, null, null, null, null,
-  ];
+  const [chartData, setChartData] = React.useState<{
+    labels: string[]; actual: (number | null)[]; forecast: (number | null)[];
+    band: { y0: number; y1: number }[]; limit: number; total: number;
+  } | null>(null);
 
-  const forecastSeries: (number | null)[] = [
-    null, null, null, null, null, null, null,
-    null, null, null, null, null, null,
-    39, // May 14: backtest prediction
-    40, // May 15
-    41, // May 16
-    43, // May 17
-    44, // May 18
-    45, // May 19
-    46, // May 20
-    44, // May 21
-    47, // May 22
-    48, // May 23
-    49, // May 24
-    51, // May 25
-    50, // May 26
-    52, // May 27
-    53, // May 28
-    55, // May 29
-    54, // May 30
-    56, // May 31
-  ];
+  React.useEffect(() => {
+    if (branchId == null) return;
+    api.get(`/inventory/branch/${branchId}`).then(async (stock: any[]) => {
+      const ingredientRows = await api.get('/ingredients/?limit=500');
+      const nameById = new Map(ingredientRows.map((i: any) => [i.ingredient_id, i.ingredient_name]));
+      const tracked = stock.map((s: any) => ({ ingredient_id: s.ingredient_id, name: nameById.get(s.ingredient_id) ?? `#${s.ingredient_id}` }));
+      setIngredients(tracked);
+      if (tracked.length > 0 && !ingredientId) setIngredientId(String(tracked[0].ingredient_id));
+    });
+  }, [branchId]);
 
-  const forecastBand: { y0: number; y1: number }[] = [
-    { y0: 35, y1: 44 }, // May 14
-    { y0: 35, y1: 46 }, // May 15
-    { y0: 36, y1: 47 }, // May 16
-    { y0: 37, y1: 49 }, // May 17
-    { y0: 37, y1: 51 }, // May 18
-    { y0: 38, y1: 52 }, // May 19
-    { y0: 39, y1: 53 }, // May 20
-    { y0: 38, y1: 54 }, // May 21
-    { y0: 40, y1: 55 }, // May 22
-    { y0: 41, y1: 56 }, // May 23
-    { y0: 42, y1: 57 }, // May 24
-    { y0: 43, y1: 59 }, // May 25
-    { y0: 42, y1: 59 }, // May 26
-    { y0: 44, y1: 60 }, // May 27
-    { y0: 44, y1: 62 }, // May 28
-    { y0: 45, y1: 63 }, // May 29
-    { y0: 46, y1: 64 }, // May 30
-    { y0: 47, y1: 65 }, // May 31
-  ];
+  // The date pickers drive how much history/forecast is fetched, rather than
+  // slicing an already-fetched, specially-shaped array after the fact -
+  // forecastBand below is intentionally shorter than labels (it's a suffix
+  // starting at the last actual day, which is what ForecastArea expects), so
+  // re-slicing it by arbitrary date range afterwards doesn't line up safely.
+  const historyDays = Math.max(1, dayjs().diff(dateRange.start ?? dayjs().subtract(30, 'day'), 'day'));
+  const forecastDays = Math.max(1, (dateRange.end ?? dayjs().add(7, 'day')).diff(dayjs(), 'day'));
 
-  // index of the last actual / first forecast point (May 14)
-  const forecastLimit = actualSeries.findLastIndex((v) => v !== null); // 13
+  React.useEffect(() => {
+    if (branchId == null || !ingredientId) return;
 
-  // TODO: REPLACE WITH SQLALCHEMY + POSTGRESQL, populate from distinct ingredients/branches
-  const ingredientOrBranchOptions: { field: 'ingredient' | 'branch'; label: string; value: string }[] = [];
+    Promise.all([
+      api.get(`/inventory/transactions/branch/${branchId}?ingredient_id=${ingredientId}&limit=1000`),
+      api.get(`/forecast/branch/${branchId}/ingredient/${ingredientId}?lookback_days=${historyDays}&forecast_period_days=${forecastDays}`),
+    ]).then(([transactions, forecast]: any[]) => {
+      // Actual: real daily consumption, summed per day, for the last `historyDays` days.
+      const today = new Date();
+      const byDay = new Map<string, number>();
+      for (let i = historyDays - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        byDay.set(d.toISOString().slice(0, 10), 0);
+      }
+      transactions
+        .filter((t: any) => t.transaction_type === 'CONSUMPTION')
+        .forEach((t: any) => {
+          const day = String(t.transaction_date).slice(0, 10);
+          if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + t.quantity);
+        });
+      const pastDays = [...byDay.keys()];
+      const actualPast: (number | null)[] = [...byDay.values()];
+
+      // Forecast: the backend gives one number (average demand per day over the
+      // forecast window) rather than a day-by-day statistical prediction, so the
+      // "forecast" line repeats that value forward, and the shaded band is a
+      // simple +/-20% heuristic - not a real confidence interval, since the
+      // backend doesn't compute one.
+      const dailyDemand = forecast.forecast_daily_demand;
+      const futureDays: string[] = [];
+      const forecastFuture: (number | null)[] = [];
+      const bandFuture: { y0: number; y1: number }[] = [];
+      for (let i = 1; i <= forecastDays; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        futureDays.push(d.toISOString().slice(0, 10));
+        forecastFuture.push(dailyDemand);
+        bandFuture.push({ y0: Math.max(0, dailyDemand * 0.8), y1: dailyDemand * 1.2 });
+      }
+
+      const labels = [...pastDays, ...futureDays];
+      const actual: (number | null)[] = [...actualPast, ...futureDays.map(() => null)];
+      const lastActual = actualPast.length > 0 ? actualPast[actualPast.length - 1] : dailyDemand;
+      const forecastSeries: (number | null)[] = [
+        ...pastDays.map(() => null),
+        lastActual, // connects the two lines at the seam
+        ...forecastFuture.slice(1),
+      ];
+      // ForecastArea slices xAxis.data with `.slice(limit)` (limit = pastDays.length - 1)
+      // and indexes this band array positionally against THAT slice - so band must be
+      // exactly (labels.length - limit) = forecastDays + 1 entries long, not full-length.
+      const band: { y0: number; y1: number }[] = [
+        { y0: lastActual ?? 0, y1: lastActual ?? 0 }, // the seam day itself
+        ...bandFuture, // every future day, NOT sliced
+      ];
+
+      setChartData({ labels, actual, forecast: forecastSeries, band, limit: pastDays.length - 1, total: forecast.forecast_total_demand });
+    });
+  }, [branchId, ingredientId, historyDays, forecastDays]);
+
+  const ingredientOptions = ingredients.map((i) => ({ label: i.name, value: String(i.ingredient_id) }));
+
+  if (!chartData) {
+    return (
+      <Card variant="outlined" sx={{ width: '100%' }}>
+        <CardContent><Typography color="text.secondary">Loading forecast…</Typography></CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card variant="outlined" sx={{ width: '100%' }}>
       <CardContent sx={{ padding: 0 }}>
         <Stack direction="row" sx={{ justifyContent: 'flex-end', px: 2, pt: 2 }}>
           <ForecastFilters
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
+            ingredientId={ingredientId}
+            onIngredientChange={setIngredientId}
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
-            ingredientOrBranchOptions={ingredientOrBranchOptions}
+            ingredientOptions={ingredientOptions}
           />
         </Stack>
 
         <ChartPanel
-          stat="0"
-          delta="+0%"
-          subtitle="predicted vs. actual demand, per ingredient or branch"
-          data={data}
-          actualSeries={actualSeries}
-          forecastSeries={forecastSeries}
-          forecastLimit={forecastLimit}
-          forecastBand={forecastBand}
+          stat={String(Math.round(chartData.total))}
+          delta="forecasted total"
+          subtitle="actual consumption vs. forecast, per ingredient (shaded band is a +/-20% heuristic, not a statistical confidence interval)"
+          data={chartData.labels}
+          actualSeries={chartData.actual}
+          forecastSeries={chartData.forecast}
+          forecastLimit={chartData.limit}
+          forecastBand={chartData.band}
           colorPalette={colorPalette}
         />
       </CardContent>

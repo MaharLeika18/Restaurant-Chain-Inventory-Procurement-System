@@ -22,6 +22,7 @@ import {
   Paper,
   useTheme,
   Chip,
+  Alert,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -37,27 +38,42 @@ import { useNavigate } from 'react-router';
 import useNotifications from '../../hooks/useNotifications/useNotifications';
 import PageContainer from '../PageContainer';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { api } from '../../api/client';
+import { useDialogs } from '../../hooks/useDialogs/useDialogs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 
-// TODO: Define types based on your data structure
-type POStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Sent' | 'Partially Received' | 'Received' | 'Cancelled';
+// Mirrors app/models/enums.py PurchaseOrderStatus. The backend has no
+// separate "Draft" state - a PO is PENDING_APPROVAL the moment it's created -
+// so Draft/Edit/Submit-for-approval (which don't map to any real endpoint)
+// have been dropped from the actions below.
+type POStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED';
+
+const STATUS_LABEL: Record<POStatus, string> = {
+  PENDING_APPROVAL: 'Pending Approval', APPROVED: 'Approved', REJECTED: 'Rejected',
+  ORDERED: 'Sent', PARTIALLY_RECEIVED: 'Partially Received', RECEIVED: 'Received', CANCELLED: 'Cancelled',
+};
 
 interface PurchaseOrder {
   id: string;
   poNumber: string;
   supplier: string;
+  supplierId: number;
   branch: string;
+  branchId: number;
   status: POStatus;
   itemCount: number;
   totalCost: number;
   dateCreated: string;
   expectedDelivery: string;
+  hasDiscrepancy: boolean;
+  discrepancyNotes: string | null;
   items: POItem[];
 }
 
 interface POItem {
   id: string;
+  ingredientId: number;
   ingredientName: string;
   quantityOrdered: number;
   quantityReceived: number;
@@ -65,164 +81,43 @@ interface POItem {
   lineTotal: number;
 }
 
-// TODO: Replace with actual API call
-const mockPurchaseOrders: PurchaseOrder[] = [
-  {
-    id: '1',
-    poNumber: 'PO-2025-001',
-    supplier: 'Supplier A',
-    branch: 'Branch A',
-    status: 'Draft',
-    itemCount: 5,
-    totalCost: 250.00,
-    dateCreated: '2025-09-28',
-    expectedDelivery: '2025-10-05',
-    items: [
-      { id: '1', ingredientName: 'Tomato Sauce', quantityOrdered: 50, quantityReceived: 0, unitCost: 2.5, lineTotal: 125.00 },
-      { id: '2', ingredientName: 'Mozzarella Cheese', quantityOrdered: 25, quantityReceived: 0, unitCost: 5.0, lineTotal: 125.00 },
-    ],
-  },
-  {
-    id: '2',
-    poNumber: 'PO-2025-002',
-    supplier: 'Supplier B',
-    branch: 'Branch B',
-    status: 'Pending Approval',
-    itemCount: 3,
-    totalCost: 180.00,
-    dateCreated: '2025-09-29',
-    expectedDelivery: '2025-10-08',
-    items: [
-      { id: '3', ingredientName: 'Olive Oil', quantityOrdered: 10, quantityReceived: 0, unitCost: 18.0, lineTotal: 180.00 },
-    ],
-  },
-  {
-    id: '3',
-    poNumber: 'PO-2025-003',
-    supplier: 'Supplier A',
-    branch: 'Branch A',
-    status: 'Approved',
-    itemCount: 4,
-    totalCost: 320.00,
-    dateCreated: '2025-09-25',
-    expectedDelivery: '2025-10-02',
-    items: [
-      { id: '4', ingredientName: 'Flour', quantityOrdered: 100, quantityReceived: 0, unitCost: 0.8, lineTotal: 80.00 },
-      { id: '5', ingredientName: 'Sugar', quantityOrdered: 50, quantityReceived: 0, unitCost: 1.2, lineTotal: 60.00 },
-      { id: '6', ingredientName: 'Salt', quantityOrdered: 30, quantityReceived: 0, unitCost: 0.5, lineTotal: 15.00 },
-      { id: '7', ingredientName: 'Pepper', quantityOrdered: 20, quantityReceived: 0, unitCost: 8.25, lineTotal: 165.00 },
-    ],
-  },
-  {
-    id: '4',
-    poNumber: 'PO-2025-004',
-    supplier: 'Supplier C',
-    branch: 'Branch C',
-    status: 'Sent',
-    itemCount: 2,
-    totalCost: 150.00,
-    dateCreated: '2025-09-24',
-    expectedDelivery: '2025-10-01',
-    items: [
-      { id: '8', ingredientName: 'Chicken Breast', quantityOrdered: 20, quantityReceived: 0, unitCost: 7.5, lineTotal: 150.00 },
-    ],
-  },
-  {
-    id: '5',
-    poNumber: 'PO-2025-005',
-    supplier: 'Supplier B',
-    branch: 'Branch B',
-    status: 'Partially Received',
-    itemCount: 3,
-    totalCost: 200.00,
-    dateCreated: '2025-09-23',
-    expectedDelivery: '2025-09-30',
-    items: [
-      { id: '9', ingredientName: 'Beef', quantityOrdered: 15, quantityReceived: 10, unitCost: 10.0, lineTotal: 150.00 },
-      { id: '10', ingredientName: 'Pork', quantityOrdered: 10, quantityReceived: 5, unitCost: 5.0, lineTotal: 50.00 },
-    ],
-  },
-  {
-    id: '6',
-    poNumber: 'PO-2025-006',
-    supplier: 'Supplier A',
-    branch: 'Branch A',
-    status: 'Received',
-    itemCount: 4,
-    totalCost: 175.00,
-    dateCreated: '2025-09-20',
-    expectedDelivery: '2025-09-27',
-    items: [
-      { id: '11', ingredientName: 'Lettuce', quantityOrdered: 30, quantityReceived: 30, unitCost: 2.0, lineTotal: 60.00 },
-      { id: '12', ingredientName: 'Tomatoes', quantityOrdered: 40, quantityReceived: 40, unitCost: 1.5, lineTotal: 60.00 },
-      { id: '13', ingredientName: 'Onions', quantityOrdered: 25, quantityReceived: 25, unitCost: 1.0, lineTotal: 25.00 },
-      { id: '14', ingredientName: 'Peppers', quantityOrdered: 15, quantityReceived: 15, unitCost: 2.0, lineTotal: 30.00 },
-    ],
-  },
-  {
-    id: '7',
-    poNumber: 'PO-2025-007',
-    supplier: 'Supplier D',
-    branch: 'Branch D',
-    status: 'Cancelled',
-    itemCount: 2,
-    totalCost: 90.00,
-    dateCreated: '2025-09-22',
-    expectedDelivery: '2025-09-29',
-    items: [
-      { id: '15', ingredientName: 'Fish', quantityOrdered: 10, quantityReceived: 0, unitCost: 9.0, lineTotal: 90.00 },
-    ],
-  },
-];
-
-// TODO: Replace with actual API call to fetch available suppliers
-const availableSuppliers = ['Supplier A', 'Supplier B', 'Supplier C', 'Supplier D', 'Supplier E'];
-
-// TODO: Replace with actual API call to fetch available branches
-const availableBranches = ['Branch A', 'Branch B', 'Branch C', 'Branch D', 'Branch E'];
-
 // Collapsible Row Component
 interface PORowProps {
   row: PurchaseOrder;
   onAction: (action: string, po: PurchaseOrder) => void;
   theme: any;
+  busyRowId: string | null;
 }
 
-function PORow({ row, onAction, theme }: PORowProps) {
+function PORow({ row, onAction, theme, busyRowId }: PORowProps) {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   const getAvailableActions = (status: POStatus) => {
     switch (status) {
-      case 'Draft':
-        return [
-          { label: 'Edit', icon: <EditIcon fontSize="small" />, action: 'edit', enabled: true },
-          { label: 'Submit for Approval', icon: <CheckIcon fontSize="small" />, action: 'submit', enabled: true },
-        ];
-      case 'Pending Approval':
+      case 'PENDING_APPROVAL':
         return [
           { label: 'Approve', icon: <CheckIcon fontSize="small" />, action: 'approve', enabled: true },
           { label: 'Reject', icon: <CloseIcon fontSize="small" />, action: 'reject', enabled: true },
         ];
-      case 'Approved':
+      case 'APPROVED':
         return [
-          { label: 'Export', icon: <FileDownloadIcon fontSize="small" />, action: 'export', enabled: true },
-          { label: 'Reject', icon: <CloseIcon fontSize="small" />, action: 'reject', enabled: true },
+          { label: 'Send to Supplier', icon: <LocalShippingIcon fontSize="small" />, action: 'send', enabled: true },
+          { label: 'Cancel', icon: <CloseIcon fontSize="small" />, action: 'cancel', enabled: true },
         ];
-      case 'Sent':
+      case 'ORDERED':
+        return [
+          { label: 'Receive Shipment', icon: <LocalShippingIcon fontSize="small" />, action: 'receive', enabled: true },
+          { label: 'Cancel', icon: <CloseIcon fontSize="small" />, action: 'cancel', enabled: true },
+        ];
+      case 'PARTIALLY_RECEIVED':
         return [
           { label: 'Receive Shipment', icon: <LocalShippingIcon fontSize="small" />, action: 'receive', enabled: true },
         ];
-      case 'Partially Received':
-        return [
-          { label: 'Receive Shipment', icon: <LocalShippingIcon fontSize="small" />, action: 'receive', enabled: true },
-        ];
-      case 'Received':
-        return [
-          { label: 'Export', icon: <FileDownloadIcon fontSize="small" />, action: 'export', enabled: true },
-        ];
-      case 'Cancelled':
+      case 'RECEIVED':
+      case 'REJECTED':
+      case 'CANCELLED':
         return [];
       default:
         return [];
@@ -231,19 +126,18 @@ function PORow({ row, onAction, theme }: PORowProps) {
 
   const getStatusColor = (status: POStatus) => {
     switch (status) {
-      case 'Draft':
-        return 'default';
-      case 'Pending Approval':
+      case 'PENDING_APPROVAL':
         return 'warning';
-      case 'Approved':
+      case 'APPROVED':
         return 'info';
-      case 'Sent':
+      case 'ORDERED':
         return 'primary';
-      case 'Partially Received':
+      case 'PARTIALLY_RECEIVED':
         return 'secondary';
-      case 'Received':
+      case 'RECEIVED':
         return 'success';
-      case 'Cancelled':
+      case 'REJECTED':
+      case 'CANCELLED':
         return 'error';
       default:
         return 'default';
@@ -271,7 +165,7 @@ function PORow({ row, onAction, theme }: PORowProps) {
         <TableCell>{row.branch}</TableCell>
         <TableCell>
           <Chip
-            label={row.status}
+            label={STATUS_LABEL[row.status]}
             color={getStatusColor(row.status) as any}
             size="small"
           />
@@ -287,7 +181,7 @@ function PORow({ row, onAction, theme }: PORowProps) {
               setAnchorEl(e.currentTarget);
               setMenuOpen(true);
             }}
-            disabled={actions.length === 0}
+            disabled={actions.length === 0 || busyRowId === row.id}
           >
             <MoreVertIcon fontSize="small" />
           </IconButton>
@@ -393,11 +287,62 @@ function PORow({ row, onAction, theme }: PORowProps) {
 export default function PurchaseOrders() {
   const navigate = useNavigate();
   const notifications = useNotifications();
+  const dialogs = useDialogs();
   const theme = useTheme();
 
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [availableSuppliers, setAvailableSuppliers] = useState<{ id: number; name: string }[]>([]);
+  const [availableBranches, setAvailableBranches] = useState<{ id: number; name: string }[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const loadOrders = React.useCallback(() => {
+    Promise.all([
+      api.get('/purchase-orders/?limit=200'),
+      api.get('/suppliers/?limit=500'),
+      api.get('/branches/?limit=500'),
+      api.get('/ingredients/?limit=500'),
+    ])
+      .then(([pos, suppliers, branches, ingredients]: any[]) => {
+        setAvailableSuppliers(suppliers.map((s: any) => ({ id: s.supplier_id, name: s.supplier_name })));
+        setAvailableBranches(branches.map((b: any) => ({ id: b.branch_id, name: b.branch_name })));
+        const supplierById = new Map(suppliers.map((s: any) => [s.supplier_id, s.supplier_name]));
+        const branchById = new Map(branches.map((b: any) => [b.branch_id, b.branch_name]));
+        const ingredientById = new Map(ingredients.map((i: any) => [i.ingredient_id, i.ingredient_name]));
+        setPurchaseOrders(
+          pos.map((po: any) => ({
+            id: String(po.po_id),
+            poNumber: `PO-${po.po_id}`,
+            supplier: supplierById.get(po.supplier_id) ?? `#${po.supplier_id}`,
+            supplierId: po.supplier_id,
+            branch: branchById.get(po.branch_id) ?? `#${po.branch_id}`,
+            branchId: po.branch_id,
+            status: po.status,
+            itemCount: po.items.length,
+            totalCost: po.items.reduce((sum: number, it: any) => sum + it.ordered_quantity * it.unit_cost, 0),
+            dateCreated: po.created_at,
+            expectedDelivery: po.expected_delivery_date ?? '—',
+            hasDiscrepancy: po.has_discrepancy,
+            discrepancyNotes: po.discrepancy_notes,
+            items: po.items.map((it: any) => ({
+              id: String(it.po_item_id),
+              ingredientId: it.ingredient_id,
+              ingredientName: ingredientById.get(it.ingredient_id) ?? `#${it.ingredient_id}`,
+              quantityOrdered: it.ordered_quantity,
+              quantityReceived: it.fulfilled_quantity,
+              unitCost: it.unit_cost,
+              lineTotal: it.ordered_quantity * it.unit_cost,
+            })),
+          })),
+        );
+      })
+      .catch((e) => setLoadError(e.message));
+  }, []);
+  React.useEffect(() => { loadOrders(); }, [loadOrders]);
+
   // Filtering and pagination state
-  const [filteredData, setFilteredData] = useState<PurchaseOrder[]>(mockPurchaseOrders);
-  const [displayData, setDisplayData] = useState<PurchaseOrder[]>(mockPurchaseOrders);
+  const [filteredData, setFilteredData] = useState<PurchaseOrder[]>([]);
+  const [displayData, setDisplayData] = useState<PurchaseOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -409,7 +354,7 @@ export default function PurchaseOrders() {
 
   // Update displayed data based on filters and pagination
   React.useEffect(() => {
-    let filtered = [...mockPurchaseOrders];
+    let filtered = [...purchaseOrders];
 
     // Apply search filter
     if (searchTerm) {
@@ -458,43 +403,48 @@ export default function PurchaseOrders() {
     const start = currentPage * pageSize;
     const end = start + pageSize;
     setDisplayData(filtered.slice(start, end));
-  }, [searchTerm, sortField, sortOrder, currentPage, pageSize, filterStatus, filterSupplier, filterBranch]);
+  }, [purchaseOrders, searchTerm, sortField, sortOrder, currentPage, pageSize, filterStatus, filterSupplier, filterBranch]);
 
   const handleRefresh = () => {
-    setDisplayData([...displayData]);
+    loadOrders();
   };
 
   const handleCreatePO = () => {
-    // TODO: Navigate to PO creation page
     navigate('/procurement_management/new');
   };
 
-  const handleAction = (action: string, po: PurchaseOrder) => {
+  const runAction = async (po: PurchaseOrder, path: string, roleGated: boolean) => {
+    setBusyId(po.id);
+    try {
+      await api.post(`/purchase-orders/${po.id}/${path}`);
+      notifications.show(`${po.poNumber} updated.`, { severity: 'success', autoHideDuration: 3000 });
+      loadOrders();
+    } catch (e) {
+      const hint = roleGated && (e as Error).message.includes('403') ? ' (log in as a manager or admin to do this)' : '';
+      notifications.show(`Couldn't update ${po.poNumber}: ${(e as Error).message}${hint}`, { severity: 'error', autoHideDuration: 7000 });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleAction = async (action: string, po: PurchaseOrder) => {
     switch (action) {
-      case 'edit':
-        // TODO: Navigate to PO edit page
-        navigate(`/procurement_management/purchase-orders/${po.id}/edit`);
-        break;
-      case 'submit':
-        // TODO: Send to backend API
-        console.log('Submit for approval:', po);
-        notifications.showSuccess('PO submitted for approval');
-        break;
       case 'approve':
-        // TODO: Send to backend API
-        console.log('Approve PO:', po);
-        notifications.showSuccess('PO approved');
+        await runAction(po, 'approve', true);
         break;
-      case 'reject':
-        // TODO: Send to backend API
-        console.log('Reject PO:', po);
-        notifications.showSuccess('PO rejected');
+      case 'reject': {
+        const ok = await dialogs.confirm(`Reject ${po.poNumber} from ${po.supplier}?`, { title: 'Reject purchase order?', severity: 'error', okText: 'Reject', cancelText: 'Back' });
+        if (ok) await runAction(po, 'reject', true);
         break;
-      case 'export':
-        // TODO: Export PO
-        console.log('Export PO:', po);
-        notifications.showSuccess('PO exported');
+      }
+      case 'send':
+        await runAction(po, 'send', false);
         break;
+      case 'cancel': {
+        const ok = await dialogs.confirm(`Cancel ${po.poNumber}?`, { title: 'Cancel purchase order?', severity: 'error', okText: 'Cancel PO', cancelText: 'Back' });
+        if (ok) await runAction(po, 'cancel', false);
+        break;
+      }
       case 'receive':
         // Navigate to receive purchase order page
         navigate('/inventory_operations/receive-purchase-order');
@@ -528,6 +478,7 @@ export default function PurchaseOrders() {
     >
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Stack spacing={2} sx={{ height: '100%' }}>
+          {loadError && <Alert severity="error">{loadError}</Alert>}
           {/* Search, Sort, and Filter Controls */}
           <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
             <TextField
@@ -582,13 +533,9 @@ export default function PurchaseOrders() {
                 }}
               >
                 <MenuItem value="">All</MenuItem>
-                <MenuItem value="Draft">Draft</MenuItem>
-                <MenuItem value="Pending Approval">Pending Approval</MenuItem>
-                <MenuItem value="Approved">Approved</MenuItem>
-                <MenuItem value="Sent">Sent</MenuItem>
-                <MenuItem value="Partially Received">Partially Received</MenuItem>
-                <MenuItem value="Received">Received</MenuItem>
-                <MenuItem value="Cancelled">Cancelled</MenuItem>
+                {(Object.keys(STATUS_LABEL) as POStatus[]).map((st) => (
+                  <MenuItem key={st} value={st}>{STATUS_LABEL[st]}</MenuItem>
+                ))}
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -603,8 +550,8 @@ export default function PurchaseOrders() {
               >
                 <MenuItem value="">All</MenuItem>
                 {availableSuppliers.map((supplier) => (
-                  <MenuItem key={supplier} value={supplier}>
-                    {supplier}
+                  <MenuItem key={supplier.id} value={supplier.name}>
+                    {supplier.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -621,8 +568,8 @@ export default function PurchaseOrders() {
               >
                 <MenuItem value="">All</MenuItem>
                 {availableBranches.map((branch) => (
-                  <MenuItem key={branch} value={branch}>
-                    {branch}
+                  <MenuItem key={branch.id} value={branch.name}>
+                    {branch.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -660,6 +607,7 @@ export default function PurchaseOrders() {
                       row={po}
                       onAction={handleAction}
                       theme={theme}
+                      busyRowId={busyId}
                     />
                   ))
                 )}

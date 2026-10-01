@@ -25,8 +25,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate, useLocation } from 'react-router';
 import useNotifications from '../../hooks/useNotifications/useNotifications';
 import PageContainer from '../PageContainer';
+import { api } from '../../api/client';
 
-// TODO: Define types based on your data structure
+// item.id here is the ingredient_id (as a string) - the Dashboard's Reorder
+// Recommendations grid and the reorder-predictions page both hand off rows
+// shaped like this via navigate(..., { state: { selectedItems } }).
 interface POItem {
   id: string;
   ingredient: string;
@@ -35,6 +38,7 @@ interface POItem {
   parLevel: number;
   recommendedQty: number;
   suggestedSupplier: string;
+  suggestedSupplierId: number | null;
   urgency: 'Critical' | 'Low' | 'Normal';
   quantity: number;
   unitCost: number;
@@ -42,48 +46,75 @@ interface POItem {
 }
 
 interface PurchaseOrderData {
-  supplier: string;
-  branch: string;
+  supplier: string; // supplier_id, as a string (kept as string for the Select's value)
+  branch: string; // branch_id, as a string
   expectedDeliveryDate: string;
   notes: string;
   items: POItem[];
 }
-
-// TODO: Replace with actual API call to fetch available suppliers
-const availableSuppliers = ['Supplier A', 'Supplier B', 'Supplier C', 'Supplier D', 'Supplier E'];
-
-// TODO: Replace with actual API call to fetch available branches
-const availableBranches = ['Branch A', 'Branch B', 'Branch C', 'Branch D', 'Branch E'];
 
 export default function CreatePurchaseOrder() {
   const navigate = useNavigate();
   const location = useLocation();
   const notifications = useNotifications();
 
-  // Get selected items from navigation state
+  const [availableSuppliers, setAvailableSuppliers] = useState<{ id: number; name: string }[]>([]);
+  const [availableBranches, setAvailableBranches] = useState<{ id: number; name: string }[]>([]);
+  React.useEffect(() => {
+    api.get('/suppliers/?limit=500').then((rows: any[]) => setAvailableSuppliers(rows.map((s) => ({ id: s.supplier_id, name: s.supplier_name }))));
+    api.get('/branches/?limit=500').then((rows: any[]) => setAvailableBranches(rows.map((b) => ({ id: b.branch_id, name: b.branch_name }))));
+  }, []);
+
+  // Get selected items from navigation state (e.g. the Dashboard's Reorder Recommendations grid)
   const selectedItems = (location.state as any)?.selectedItems || [];
 
   const [poData, setPoData] = useState<PurchaseOrderData>({
     supplier: '',
-    branch: '',
+    branch: selectedItems.length > 0 ? String(selectedItems[0].branchId ?? '') : '',
     expectedDeliveryDate: new Date().toISOString().split('T')[0],
     notes: '',
     items: selectedItems.length > 0
       ? selectedItems.map((item: any) => ({
           ...item,
           quantity: item.recommendedQty,
-          unitCost: 0, // TODO: Fetch from supplier pricing
-          lineTotal: 0,
+          unitCost: item.unitCost ?? 0,
+          lineTotal: (item.unitCost ?? 0) * item.recommendedQty,
         }))
       : [],
   });
+
+  // If every selected row shares the same suggested supplier, preselect it.
+  React.useEffect(() => {
+    if (poData.items.length > 0 && !poData.supplier) {
+      const ids = new Set(poData.items.map((it) => it.suggestedSupplierId).filter(Boolean));
+      if (ids.size === 1) setPoData((prev) => ({ ...prev, supplier: String([...ids][0]) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<number>(0);
 
   const handleSupplierChange = (supplier: string) => {
     setPoData((prev) => ({ ...prev, supplier }));
-    // TODO: Fetch unit costs from supplier pricing when supplier changes
+    // Pull this supplier's price for each already-added ingredient, where they carry it.
+    Promise.all(
+      poData.items.map((item) =>
+        api.get(`/suppliers/ingredient-links/by-ingredient/${item.id}`).then((links: any[]) => {
+          const link = links.find((l) => String(l.supplier_id) === supplier);
+          return { id: item.id, unitCost: link ? link.unit_cost : null };
+        }),
+      ),
+    ).then((results) => {
+      setPoData((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => {
+          const found = results.find((r) => r.id === item.id);
+          if (!found || found.unitCost == null) return item;
+          return { ...item, unitCost: found.unitCost, lineTotal: item.quantity * found.unitCost };
+        }),
+      }));
+    });
   };
 
   const handleBranchChange = (branch: string) => {
@@ -138,32 +169,51 @@ export default function CreatePurchaseOrder() {
   };
 
   const handleAddItem = () => {
-    // TODO: Add functionality to add new items manually
-    notifications.showInfo('Add item functionality coming soon');
+    notifications.show('Add item functionality coming soon - for now, start from Reorder Recommendations.', { severity: 'info', autoHideDuration: 4000 });
   };
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     if (!poData.supplier) {
-      notifications.showError('Please select a supplier');
+      notifications.show('Please select a supplier', { severity: 'error', autoHideDuration: 4000 });
       return;
     }
     if (!poData.branch) {
-      notifications.showError('Please select a branch');
+      notifications.show('Please select a branch', { severity: 'error', autoHideDuration: 4000 });
       return;
     }
     if (poData.items.length === 0) {
-      notifications.showError('Please add at least one item');
+      notifications.show('Please add at least one item', { severity: 'error', autoHideDuration: 4000 });
       return;
     }
-
-    // TODO: Send to backend API
-    console.log('Create Purchase Order:', poData);
-    notifications.showSuccess('Purchase order created successfully');
-    navigate('/procurement_management/purchase-orders');
+    const zeroQty = poData.items.find((item) => item.quantity <= 0);
+    if (zeroQty) {
+      notifications.show(`Set a quantity greater than 0 for ${zeroQty.ingredient} before submitting.`, { severity: 'error', autoHideDuration: 5000 });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post('/purchase-orders/', {
+        branch_id: Number(poData.branch),
+        supplier_id: Number(poData.supplier),
+        expected_delivery_date: poData.expectedDeliveryDate || null,
+        notes: poData.notes || null,
+        items: poData.items.map((item) => ({
+          ingredient_id: Number(item.id), ordered_quantity: item.quantity, unit_cost: item.unitCost,
+        })),
+      });
+      notifications.show('Purchase order created successfully', { severity: 'success', autoHideDuration: 3000 });
+      navigate('/procurement_management');
+    } catch (err) {
+      notifications.show((err as Error).message, { severity: 'error', autoHideDuration: 6000 });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
-    navigate('/procurement_management/purchase-orders');
+    navigate('/procurement_management');
   };
 
   const totalCost = poData.items.reduce((sum, item) => sum + item.lineTotal, 0);
@@ -181,8 +231,8 @@ export default function CreatePurchaseOrder() {
           <Button variant="outlined" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSubmit}>
-            Submit
+          <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Saving…' : 'Submit'}
           </Button>
         </Stack>
       }
@@ -202,8 +252,8 @@ export default function CreatePurchaseOrder() {
                 onChange={(e) => handleSupplierChange(e.target.value)}
               >
                 {availableSuppliers.map((supplier) => (
-                  <MenuItem key={supplier} value={supplier}>
-                    {supplier}
+                  <MenuItem key={supplier.id} value={String(supplier.id)}>
+                    {supplier.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -217,8 +267,8 @@ export default function CreatePurchaseOrder() {
                 onChange={(e) => handleBranchChange(e.target.value)}
               >
                 {availableBranches.map((branch) => (
-                  <MenuItem key={branch} value={branch}>
-                    {branch}
+                  <MenuItem key={branch.id} value={String(branch.id)}>
+                    {branch.name}
                   </MenuItem>
                 ))}
               </Select>
