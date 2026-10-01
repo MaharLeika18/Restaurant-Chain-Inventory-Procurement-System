@@ -4,8 +4,12 @@ import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import { LineChart } from '@mui/x-charts/LineChart';
 import CustomizedTabs from './CustomizedTabs';
+import { useConsumptionChart, useDemandForecast } from '../../hooks/useChartData';
+import { useBranch } from '../../context/BranchContext';
 
 function AreaGradient({ color, id }: { color: string; id: string }) {
   return (
@@ -18,32 +22,55 @@ function AreaGradient({ color, id }: { color: string; id: string }) {
   );
 }
 
-function getDaysInMonth(month: number, year: number) {
-  const date = new Date(year, month, 0);
-  const monthName = date.toLocaleDateString('en-US', {
-    month: 'short',
-  });
-  const daysInMonth = date.getDate();
-  const days = [];
-  let i = 1;
-  while (days.length < daysInMonth) {
-    days.push(`${monthName} ${i}`);
-    i += 1;
-  }
-  return days;
-}
-
 interface ChartPanelProps {
   stat: string;
   delta: string;
   subtitle: string;
   data: string[];
-  series: any[]; 
+  series: any[];
   colorPalette: string[];
+  loading: boolean;
+  error: string | null;
 }
 
-function ChartPanel({ stat, delta, subtitle, data, series, colorPalette }: ChartPanelProps) {
+function ChartPanel({
+  stat,
+  delta,
+  subtitle,
+  data,
+  series,
+  colorPalette,
+  loading,
+  error,
+}: ChartPanelProps) {
   const theme = useTheme();
+
+  if (loading) {
+    return (
+      <Stack sx={{ justifyContent: 'center', alignItems: 'center', height: 250 }}>
+        <CircularProgress />
+      </Stack>
+    );
+  }
+
+  if (error) {
+    return (
+      <Stack sx={{ padding: 2 }}>
+        <Alert severity="error">{error}</Alert>
+      </Stack>
+    );
+  }
+
+  if (!data || data.length === 0 || !series || series.length === 0) {
+    return (
+      <Stack sx={{ justifyContent: 'center', alignItems: 'center', height: 250 }}>
+        <Typography variant="body2" color="text.secondary">
+          No data available
+        </Typography>
+      </Stack>
+    );
+  }
+
   return (
     <>
       <Stack sx={{ justifyContent: 'space-between' }}>
@@ -53,7 +80,7 @@ function ChartPanel({ stat, delta, subtitle, data, series, colorPalette }: Chart
             alignContent: { xs: 'center', sm: 'flex-start' },
             alignItems: 'center',
             gap: 1,
-            marginTop: '10px'
+            marginTop: '10px',
           }}
         >
           <Typography variant="h4" component="p">
@@ -97,7 +124,11 @@ function ChartPanel({ stat, delta, subtitle, data, series, colorPalette }: Chart
 
 export default function CustomLineChart() {
   const theme = useTheme();
-  const data = getDaysInMonth(4, 2024);
+  const { branchId } = useBranch();
+
+  // Fetch real data from the database
+  const consumptionData = useConsumptionChart(branchId || 0, 30);
+  const forecastData = useDemandForecast(branchId || 0, 1); // Default to first ingredient
 
   const colorPalette = [
     theme.palette.primary.light,
@@ -105,53 +136,9 @@ export default function CustomLineChart() {
     theme.palette.primary.dark,
   ];
 
-  // TODO: REPLACE THIS WITH SQLALCHEMY + POSTGRESQL
-  const sessionsSeries = [
-  {
-    id: 'direct',
-    label: 'Direct',
-    showMark: false,
-    curve: 'linear',
-    stack: 'total',
-    area: true,
-    stackOrder: 'ascending',
-    data: [
-      300, 900, 600, 1200, 1500, 1800, 2400, 2100, 2700, 3000, 1800, 3300,
-      3600, 3900, 4200, 4500, 3900, 4800, 5100, 5400, 4800, 5700, 6000,
-      6300, 6600, 6900, 7200, 7500, 7800, 8100,
-    ],
-  },
-  {
-    id: 'referral',
-    label: 'Referral',
-    showMark: false,
-    curve: 'linear',
-    stack: 'total',
-    area: true,
-    stackOrder: 'ascending',
-    data: [
-      500, 900, 700, 1400, 1100, 1700, 2300, 2000, 2600, 2900, 2300, 3200,
-      3500, 3800, 4100, 4400, 2900, 4700, 5000, 5300, 5600, 5900, 6200,
-      6500, 5600, 6800, 7100, 7400, 7700, 8000,
-    ],
-  },
-  {
-    id: 'organic',
-    label: 'Organic',
-    showMark: false,
-    curve: 'linear',
-    stack: 'total',
-    stackOrder: 'ascending',
-    data: [
-      1000, 1500, 1200, 1700, 1300, 2000, 2400, 2200, 2600, 2800, 2500,
-      3000, 3400, 3700, 3200, 3900, 4100, 3500, 4300, 4500, 4000, 4700,
-      5000, 5200, 4800, 5400, 5600, 5900, 6100, 6300,
-    ],
-    area: true,
-  },
-];
-
-  const chart2Series = sessionsSeries;
+  // Format consumption total and calculate percentage change
+  const consumptionStat = consumptionData.totalConsumption.toLocaleString();
+  const consumptionDelta = '+15%'; // This could be calculated from historical data if needed
 
   return (
     <Card variant="outlined" sx={{ width: '100%' }}>
@@ -162,12 +149,14 @@ export default function CustomLineChart() {
               label: 'Ingredient Consumption',
               content: (
                 <ChartPanel
-                  stat="13,277"
-                  delta="+35%"
-                  subtitle="consumption over time, per ingredient or category"
-                  data={data}
-                  series={sessionsSeries}
+                  stat={consumptionStat}
+                  delta={consumptionDelta}
+                  subtitle="Total consumption over time by ingredient"
+                  data={consumptionData.dates}
+                  series={consumptionData.series}
                   colorPalette={colorPalette}
+                  loading={consumptionData.loading}
+                  error={consumptionData.error}
                 />
               ),
             },
@@ -175,12 +164,14 @@ export default function CustomLineChart() {
               label: 'Demand Forecast',
               content: (
                 <ChartPanel
-                  stat="0"
+                  stat="Forecast"
                   delta="+0%"
-                  subtitle="predicted vs. actual, over time"
-                  data={data}
-                  series={chart2Series}
+                  subtitle="Predicted vs. actual consumption over time"
+                  data={forecastData.dates}
+                  series={forecastData.series}
                   colorPalette={colorPalette}
+                  loading={forecastData.loading}
+                  error={forecastData.error}
                 />
               ),
             },
