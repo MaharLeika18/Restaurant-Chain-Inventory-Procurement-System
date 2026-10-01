@@ -16,6 +16,6 @@ class ConsumptionResponse(BaseModel):
 
 
 class ForecastResponse(BaseModel):
-    dates: List[date]
-    predicted: List[float]
-    actual: List[float | None] = []  # Actual consumption data if available
+    dates: list[date]
+    predicted: list[float | None]
+    actual: list[float | None]
