@@ -61,14 +61,12 @@ const mockMenuItems: MenuItem[] = [
   { id: '15', name: 'Ramen', price: 12.50 },
 ];
 
-const LABEL_TRANSFORM = 'translate(10px, 4px) scale(1)';
-
 const getLabelSx = (theme: any) => ({
   '& .MuiInputBase-root': {
     marginTop: '15px',
   },
   '& .MuiInputLabel-root': {
-    transform: LABEL_TRANSFORM,
+    transform: 'translate(10px, 4px) scale(1)',
     px: '4px',
     zIndex: 1,
     background: `linear-gradient(
@@ -79,7 +77,7 @@ const getLabelSx = (theme: any) => ({
       transparent calc(50% + 2px)
     )`,
     '&.MuiInputLabel-shrink, &.Mui-focused, &.MuiInputLabel-shrink.Mui-focused': {
-      transform: LABEL_TRANSFORM,
+      transform: 'translate(10px, 4px) scale(1)',
     },
     '&.Mui-focused': {
       zIndex: 10,

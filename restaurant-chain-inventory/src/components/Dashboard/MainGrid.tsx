@@ -94,7 +94,7 @@ export default function MainGrid() {
     <Box sx={{ width: '100%'}}>
       {/* cards */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, mt: '20px' }}>
-        <Typography component="h2" variant="h6">
+        <Typography component="h2" variant="h6" sx={{ mt:'5px' }}>
           Overview Dashboard
         </Typography>
         <FormControl size="small" sx={{ minWidth: 150, ml: 'auto'  }}>

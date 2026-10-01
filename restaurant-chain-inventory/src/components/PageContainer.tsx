@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { styled } from '@mui/material/styles';
+import { styled, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Breadcrumbs, { breadcrumbsClasses } from '@mui/material/Breadcrumbs';
 import Container, { ContainerProps } from '@mui/material/Container';
@@ -9,11 +9,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import NavigateNextRoundedIcon from '@mui/icons-material/NavigateNextRounded';
 import { Link } from 'react-router';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import { useBranch } from '../context/BranchContext';
+import { getLabelSx } from '../utils/styles';
 
 const PageContentHeader = styled('div')(({ theme }) => ({
   display: 'flex',
@@ -56,6 +55,7 @@ export interface PageContainerProps extends ContainerProps {
 export default function PageContainer(props: PageContainerProps) {
   const { children, breadcrumbs, title, actions = null, showBranchSelector = false } = props;
   const { branches, branchId, setBranchId, loading } = useBranch();
+  const theme = useTheme();
 
   return (
     <Container sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -92,21 +92,22 @@ export default function PageContainer(props: PageContainerProps) {
             {title ? <Typography variant="h4">{title}</Typography> : null}
             <PageHeaderToolbar>
               {showBranchSelector && (
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <InputLabel>Branch</InputLabel>
-                  <Select
-                    value={branchId || ''}
+                <TextField
                     label="Branch"
+                    size="small"
+                    select
+                    value={branchId || ''}
                     onChange={(e) => setBranchId(Number(e.target.value))}
                     disabled={loading || branches.length === 0}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ ...getLabelSx(theme), minWidth: 220 }}
                   >
                     {branches.map((branch: any) => (
                       <MenuItem key={branch.branch_id} value={branch.branch_id}>
                         {branch.branch_name}
                       </MenuItem>
                     ))}
-                  </Select>
-                </FormControl>
+                  </TextField>
               )}
               {actions}
             </PageHeaderToolbar>
