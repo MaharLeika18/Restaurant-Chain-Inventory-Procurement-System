@@ -187,7 +187,7 @@ export default function CreatePurchaseOrder() {
         </Stack>
       }
     >
-      <Stack spacing={3} sx={{ maxWidth: 1200 }}>
+      <Stack spacing={3} sx={{ width: '100%', maxWidth: 1200 }}>
         {/* PO Details */}
         <Box>
           <Typography variant="h6" gutterBottom>
@@ -254,7 +254,7 @@ export default function CreatePurchaseOrder() {
             <Typography variant="h6">
               PO Items ({poData.items.length})
             </Typography>
-            <Button variant="outlined" onClick={handleAddItem} startIcon={<EditIcon />}>
+            <Button variant="outlined" onClick={handleAddItem} startIcon={<EditIcon />} sx={{ ml: 'auto'}}>
               Add Item
             </Button>
           </Stack>
@@ -341,15 +341,15 @@ export default function CreatePurchaseOrder() {
           )}
         </Box>
 
-        <Divider />
+        {/* <Divider /> */}
 
         {/* Summary */}
-        <Box>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Box sx={{ width: '100%', pt: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ width: '100%' }}>
             <Typography variant="h6">
               Total Cost
             </Typography>
-            <Typography variant="h4" color="primary">
+            <Typography variant="h4" color="primary" sx={{ fontWeight: 600 }}>
               ${totalCost.toFixed(2)}
             </Typography>
           </Stack>
