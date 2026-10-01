@@ -91,13 +91,13 @@ export default function MainGrid() {
   }, [branchId]);
 
   return (
-    <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
+    <Box sx={{ width: '100%'}}>
       {/* cards */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, mt: '20px' }}>
         <Typography component="h2" variant="h6">
           Overview Dashboard
         </Typography>
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={{ minWidth: 150, ml: 'auto'  }}>
           <InputLabel>Branch</InputLabel>
           <Select
             value={branchId || ''}

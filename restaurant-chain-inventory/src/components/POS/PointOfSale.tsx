@@ -216,7 +216,7 @@ export default function PointOfSale() {
         </Button>
       }
     >
-      <Box sx={{ display: 'flex', gap: 3, height: '100%', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', gap: 3, overflow: 'hidden', height: '100%' }}>
         {/* Menu Items Section - 2/3 of the space */}
         <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header with Title and Controls */}
@@ -352,6 +352,7 @@ export default function PointOfSale() {
         <Paper
           sx={{
             flex: 1,
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             p: 2,
@@ -368,6 +369,7 @@ export default function PointOfSale() {
             sx={{
               flex: 1,
               minHeight: 0,
+              maxHeight: 345,
               overflowY: 'auto',
               mb: 2,
               pr: 1,
@@ -392,13 +394,9 @@ export default function PointOfSale() {
                 {cart.map((item) => (
                   <Paper key={item.id} 
                     sx={{
-                        flex: 1,
-                        minHeight: 0,      
-                        display: 'flex',
-                        flexDirection: 'column',
+                        flexShrink: 0,   
                         p: 2,
                         bgcolor: 'background.default',
-                        overflow: 'hidden',
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
@@ -429,7 +427,21 @@ export default function PointOfSale() {
                         //     handleUpdateQuantity(item.id, Math.max(0, parseInt(e.target.value) || 0))
                         //   }
                         //   inputProps={{ min: 0, max: 999, style: { textAlign: 'center', padding: '4px' } }}
-                          sx={{ width: '50px', height: '32px', mb: '15px','& input': { height: '32px', padding: 0 } }}
+                          sx={{
+                            width: '50px',
+                            height: '32px',
+                            mb: '15px',
+                            '& input': { height: '32px', padding: 0, textAlign: 'center' },
+                            // Chrome, Safari, Edge
+                            '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                              WebkitAppearance: 'none',
+                              margin: 0,
+                            },
+                            // Firefox
+                            '& input[type=number]': {
+                              MozAppearance: 'textfield',
+                            },
+                          }}
                         />
                         <IconButton
                           size="small"
